@@ -8,6 +8,10 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
+      - name: Copy Manifest to Root Android Folder
+        run: |
+          mkdir -p android
+          cp android/app/src/main/AndroidManifest.xml android/AndroidManifest.xml || true
       - name: Install Dependencies
         run: flutter pub get
       - name: Build Debug APK
