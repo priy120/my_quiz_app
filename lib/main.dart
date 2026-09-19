@@ -1,20 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'screens/splash_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Enable Cookie Manager for keeping Google Login Session active
-  final WebViewCookieManager cookieManager = WebViewCookieManager();
-  cookieManager.setCookie(
-    const WebViewCookie(
-      name: 'auth_session',
-      value: 'active',
-      domain: 'letscompeteme.blogspot.com',
-    ),
-  );
-
   runApp(const MyApp());
 }
 
