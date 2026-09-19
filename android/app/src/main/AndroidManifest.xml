@@ -7,7 +7,7 @@
 
     <application
         android:label="quizapp"
-        android:name="${applicationName}"
+        android:name="androidx.multidex.MultiDexApplication"
         android:icon="@mipmap/ic_launcher">
         
         <activity
