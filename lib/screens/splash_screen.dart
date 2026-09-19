@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
-import 'login_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'auth_screen.dart';
+import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,41 +15,64 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // 3 Second baad Login Screen par redirect hoga
     Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+        );
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A73E8),
+      backgroundColor: const Color(0xFF1A237E),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.quiz, size: 85, color: Colors.white),
-            SizedBox(height: 20),
-            Text(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.school_rounded,
+                size: 70,
+                color: Color(0xFF1A237E),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
               'CompeteMe',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 30,
+                fontSize: 32,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
               ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'Prepare & Win Rewards',
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+            const SizedBox(height: 8),
+            const Text(
+              'Rojgar With Ankit Inspired Learning Portal',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
             ),
-            SizedBox(height: 50),
-            CircularProgressIndicator(color: Colors.white),
+            const SizedBox(height: 40),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.amberAccent),
+            ),
           ],
         ),
       ),
