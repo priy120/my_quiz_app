@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
@@ -35,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFFFFFFFF))
       ..setUserAgent(
-          "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+          "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -53,7 +52,6 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           },
           onNavigationRequest: (NavigationRequest request) {
-            // Google Login, OAuth aur Blogger Redirects ko Smoothly Allow Karein
             return NavigationDecision.navigate;
           },
         ),
@@ -63,7 +61,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (controller.platform is AndroidWebViewController) {
       final androidController = controller.platform as AndroidWebViewController;
       
-      // DOM Storage & Cookies support active for Firebase Login Persistence
+      // Allow WebView to handle third-party cookies and popup auth redirects properly
+      androidController.setMediaPlaybackRequiresUserGesture(false);
       androidController.setOnPlatformPermissionRequest(
         (request) => request.grant(),
       );
