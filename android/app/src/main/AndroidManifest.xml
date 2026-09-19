@@ -10,6 +10,10 @@
         android:name="androidx.multidex.MultiDexApplication"
         android:icon="@mipmap/ic_launcher">
         
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -29,9 +33,5 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
     </application>
 </manifest>
