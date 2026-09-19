@@ -14,7 +14,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final WebViewController _controller;
   bool _isLoading = true;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+  // Added serverClientId from Firebase OAuth Web Client
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: "295041120734-web-client-id",
+  );
 
   final String _portalUrl = "https://letscompeteme.blogspot.com/";
 
@@ -82,7 +86,6 @@ class _HomeScreenState extends State<HomeScreen> {
         final GoogleSignInAuthentication googleAuth =
             await googleUser.authentication;
 
-        // Pass OAuth Token back to Firebase Web SDK in Blogger
         final jsScript = '''
           if (window.handleNativeGoogleSuccess) {
             window.handleNativeGoogleSuccess("${googleAuth.idToken}", "${googleAuth.accessToken}");
