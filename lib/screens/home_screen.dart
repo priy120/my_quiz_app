@@ -20,8 +20,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
 
-    final PlatformWebViewControllerCreationParams params =
-        const PlatformWebViewControllerCreationParams();
+    late final PlatformWebViewControllerCreationParams params;
+    if (WebViewPlatform.instance is AndroidWebViewPlatform) {
+      params = AndroidWebViewControllerCreationParams();
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
 
     final WebViewController controller =
         WebViewController.fromPlatformCreationParams(params);
@@ -57,10 +61,11 @@ class _HomeScreenState extends State<HomeScreen> {
       )
       ..loadRequest(Uri.parse(_portalUrl));
 
-    // 🌐 GOOGLE LOGIN POPUP ALLOW FIX
     if (controller.platform is AndroidWebViewController) {
-      (controller.platform as AndroidWebViewController)
-          .setSupportMultipleWindows(true);
+      final androidController = controller.platform as AndroidWebViewController;
+      androidController.setOnPlatformPermissionRequest(
+        (request) => request.grant(),
+      );
     }
 
     _controller = controller;
