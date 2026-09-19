@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class HomeScreen extends StatefulWidget {
   final String? initialAction;
@@ -13,6 +14,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final WebViewController _controller;
   bool _isLoading = true;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   final String _portalUrl = "https://letscompeteme.blogspot.com/";
 
@@ -37,12 +39,9 @@ class _HomeScreenState extends State<HomeScreen> {
           "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
       ..addJavaScriptChannel(
         'FlutterChannel',
-        onMessageReceived: (JavaScriptMessage message) {
+        onMessageReceived: (JavaScriptMessage message) async {
           if (message.message == 'google_login_request') {
-            // Native handler triggered smoothly
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Logging in...')),
-            );
+            await _handleNativeGoogleSignIn();
           }
         },
       )
@@ -74,6 +73,28 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _controller = controller;
+  }
+
+  Future<void> _handleNativeGoogleSignIn() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser != null) {
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+
+        // Pass OAuth Token back to Firebase Web SDK in Blogger
+        final jsScript = '''
+          if (window.handleNativeGoogleSuccess) {
+            window.handleNativeGoogleSuccess("${googleAuth.idToken}", "${googleAuth.accessToken}");
+          }
+        ''';
+        await _controller.runJavaScript(jsScript);
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Google Login Error: $error')),
+      );
+    }
   }
 
   Future<void> _handleRefresh() async {
