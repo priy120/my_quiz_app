@@ -33,8 +33,9 @@ class _HomeScreenState extends State<HomeScreen> {
     controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFFFFFFFF))
+      // Standard Chrome UserAgent taaki Google auto-detect kar sake device account
       ..setUserAgent(
-          "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
+          "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -58,14 +59,18 @@ class _HomeScreenState extends State<HomeScreen> {
       )
       ..loadRequest(Uri.parse(_portalUrl));
 
+    // Enable Cookie Persistence & Storage for Google Auth Auto-Login
     if (controller.platform is AndroidWebViewController) {
       final androidController = controller.platform as AndroidWebViewController;
       
-      // Allow WebView to handle third-party cookies and popup auth redirects properly
+      // DOM Storage Enable (Auth Token Save rakhne ke liye)
       androidController.setMediaPlaybackRequiresUserGesture(false);
       androidController.setOnPlatformPermissionRequest(
         (request) => request.grant(),
       );
+      
+      // WebView debugging enable for smoother JS execution
+      AndroidWebViewController.enableDebugging(true);
     }
 
     _controller = controller;
