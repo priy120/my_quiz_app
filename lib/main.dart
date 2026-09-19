@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'utils/app_theme.dart';
 import 'services/blogger_service.dart';
 
@@ -35,13 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _latestTests = BloggerService.fetchLatestTests();
-  }
-
-  Future<void> _launchURL(String urlString) async {
-    final Uri url = Uri.parse(urlString);
-    if (!await launchUrl(url, mode: LaunchMode.inAppWebView)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
   }
 
   @override
@@ -101,9 +93,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         trailing: ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.startRed, foregroundColor: Colors.white),
                           onPressed: () {
-                            if (post['url'] != null) {
-                              _launchURL(post['url']);
-                            }
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Text(post['title'] ?? 'Test'),
+                                content: Text('Test Link:\n${post['url'] ?? ''}'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('OK'),
+                                  )
+                                ],
+                              ),
+                            );
                           },
                           child: const Text('Start'),
                         ),
