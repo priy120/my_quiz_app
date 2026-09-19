@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 class HomeScreen extends StatefulWidget {
   final String? initialAction;
@@ -18,9 +19,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
+
+    final PlatformWebViewControllerCreationParams params =
+        const PlatformWebViewControllerCreationParams();
+
+    final WebViewController controller =
+        WebViewController.fromPlatformCreationParams(params);
+
+    controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
+      ..setBackgroundColor(const Color(0xFFFFFFFF))
+      ..setUserAgent(
+          "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -33,12 +43,27 @@ class _HomeScreenState extends State<HomeScreen> {
               _isLoading = false;
             });
             if (widget.initialAction == 'google_login') {
-              _controller.runJavaScript("if(window.triggerGoogleLogin){ window.triggerGoogleLogin(); }");
+              controller.runJavaScript(
+                  "if(window.triggerGoogleLogin){ window.triggerGoogleLogin(); }");
             }
+          },
+          onNavigationRequest: (NavigationRequest request) {
+            if (request.url.startsWith('about:blank')) {
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
           },
         ),
       )
       ..loadRequest(Uri.parse(_portalUrl));
+
+    // 🌐 GOOGLE LOGIN POPUP ALLOW FIX
+    if (controller.platform is AndroidWebViewController) {
+      (controller.platform as AndroidWebViewController)
+          .setSupportMultipleWindows(true);
+    }
+
+    _controller = controller;
   }
 
   Future<void> _handleRefresh() async {
@@ -49,7 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CompeteMe Portal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('CompeteMe Portal',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: const Color(0xFF1A73E8),
         foregroundColor: Colors.white,
         actions: [
