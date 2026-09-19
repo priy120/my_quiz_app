@@ -10,6 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Multidex Support
+  flutter_multidex: ^1.0.0
+
   # Firebase Core Services
   firebase_core: ^2.27.0
   firebase_auth: ^4.17.8
