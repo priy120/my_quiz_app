@@ -47,7 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 30),
               
-              // 🌐 GOOGLE DIRECT FIREBASE AUTH BUTTON
               SizedBox(
                 width: double.infinity,
                 height: 52,
