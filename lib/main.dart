@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'utils/app_theme.dart';
 import 'services/blogger_service.dart';
 
 void main() {
@@ -14,7 +13,10 @@ class QuizApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Mock Test Portal',
-      theme: AppTheme.lightTheme,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
       home: const HomeScreen(),
     );
   }
@@ -51,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [AppTheme.primaryBlue, AppTheme.darkBlue]),
+                color: Colors.blue.shade800,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Column(
@@ -63,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Latest Available Tests', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+            const Text('Latest Available Tests', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue)),
             const SizedBox(height: 12),
             FutureBuilder<List<dynamic>>(
               future: _latestTests,
@@ -91,17 +93,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ListTile(
                         title: Text(post['title'] ?? 'Quiz Test', style: const TextStyle(fontWeight: FontWeight.bold)),
                         trailing: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.startRed, foregroundColor: Colors.white),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                           onPressed: () {
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: Text(post['title'] ?? 'Test'),
-                                content: Text('Test Link:\n${post['url'] ?? ''}'),
+                                title: Text(post['title'] ?? 'Test Details'),
+                                content: Text('Link: ${post['url'] ?? 'No link'}'),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context),
-                                    child: const Text('OK'),
+                                    child: const Text('Close'),
                                   )
                                 ],
                               ),
