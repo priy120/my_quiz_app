@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'services/blogger_service.dart';
 
 void main() {
@@ -95,19 +96,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         trailing: ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                           onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: Text(post['title'] ?? 'Test Details'),
-                                content: Text('Link: ${post['url'] ?? 'No link'}'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Close'),
-                                  )
-                                ],
-                              ),
-                            );
+                            if (post['url'] != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => QuizWebViewScreen(
+                                    url: post['url'],
+                                    title: post['title'] ?? 'Quiz Test',
+                                  ),
+                                ),
+                              );
+                            }
                           },
                           child: const Text('Start'),
                         ),
@@ -120,6 +119,38 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class QuizWebViewScreen extends StatefulWidget {
+  final String url;
+  final String title;
+
+  const QuizWebViewScreen({super.key, required this.url, required this.title});
+
+  @override
+  State<QuizWebViewScreen> createState() => _QuizWebViewScreenState();
+}
+
+class _QuizWebViewScreenState extends State<QuizWebViewScreen> {
+  late final WebViewController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(Uri.parse(widget.url));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+      ),
+      body: WebViewWidget(controller: controller),
     );
   }
 }
