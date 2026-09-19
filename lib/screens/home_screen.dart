@@ -1,103 +1,118 @@
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class HomeScreen extends StatefulWidget {
-  final String? initialAction;
-  const HomeScreen({super.key, this.initialAction});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  late final WebViewController _controller;
-  bool _isLoading = true;
-
-  final String _portalUrl = "https://letscompeteme.blogspot.com/";
-
-  @override
-  void initState() {
-    super.initState();
-
-    late final PlatformWebViewControllerCreationParams params;
-    if (WebViewPlatform.instance is AndroidWebViewPlatform) {
-      params = AndroidWebViewControllerCreationParams();
-    } else {
-      params = const PlatformWebViewControllerCreationParams();
-    }
-
-    final WebViewController controller =
-        WebViewController.fromPlatformCreationParams(params);
-
-    controller
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFFFFFFF))
-      // Standard Desktop Chrome UserAgent string - overcomes Google's 'disallowed_useragent' restriction in WebView
-      ..setUserAgent(
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (String url) {
-            setState(() {
-              _isLoading = true;
-            });
-          },
-          onPageFinished: (String url) {
-            setState(() {
-              _isLoading = false;
-            });
-          },
-          onNavigationRequest: (NavigationRequest request) {
-            return NavigationDecision.navigate;
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(_portalUrl));
-
-    if (controller.platform is AndroidWebViewController) {
-      final androidController = controller.platform as AndroidWebViewController;
-      androidController.setMediaPlaybackRequiresUserGesture(false);
-      androidController.setOnPlatformPermissionRequest(
-        (request) => request.grant(),
-      );
-    }
-
-    _controller = controller;
-  }
-
-  Future<void> _handleRefresh() async {
-    await _controller.reload();
-  }
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('CompeteMe Portal',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: const Color(0xFF1A73E8),
-        foregroundColor: Colors.white,
+        backgroundColor: const Color(0xFF1E3A8A),
+        title: Text(
+          'Hi, ${user?.email?.split('@')[0] ?? "Student"}',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => _controller.reload(),
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () => FirebaseAuth.instance.signOut(),
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          RefreshIndicator(
-            onRefresh: _handleRefresh,
-            child: WebViewWidget(controller: _controller),
-          ),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF1A73E8),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)]),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.stars, color: Colors.amber, size: 36),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'RWA Style Mock Tests Live!\nAttempt Free Weekly Tests & Improve Rank.',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.1,
+                children: [
+                  _buildRwaCard(
+                    title: 'Free Weekly Test',
+                    icon: Icons.assignment,
+                    color: Colors.blue,
+                    onTap: () {},
+                  ),
+                  _buildRwaCard(
+                    title: 'Paid Test Series',
+                    icon: Icons.workspace_premium,
+                    color: Colors.orange,
+                    onTap: () {},
+                  ),
+                  _buildRwaCard(
+                    title: 'PDF Notes',
+                    icon: Icons.picture_as_pdf,
+                    color: Colors.purple,
+                    onTap: () {},
+                  ),
+                  _buildRwaCard(
+                    title: 'Current Affairs',
+                    icon: Icons.newspaper,
+                    color: Colors.teal,
+                    onTap: () {},
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRwaCard({required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: color.withOpacity(0.1),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 10),
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          ],
+        ),
       ),
     );
   }
