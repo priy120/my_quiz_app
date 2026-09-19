@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
@@ -52,9 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           },
           onNavigationRequest: (NavigationRequest request) {
-            if (request.url.startsWith('about:blank')) {
-              return NavigationDecision.prevent;
-            }
+            // Google Login, OAuth aur Blogger Redirects ko Smoothly Allow Karein
             return NavigationDecision.navigate;
           },
         ),
@@ -63,6 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (controller.platform is AndroidWebViewController) {
       final androidController = controller.platform as AndroidWebViewController;
+      
+      // DOM Storage & Cookies support active for Firebase Login Persistence
       androidController.setOnPlatformPermissionRequest(
         (request) => request.grant(),
       );
