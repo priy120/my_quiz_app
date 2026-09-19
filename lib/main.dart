@@ -57,23 +57,65 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.Yeh GitHub par base `main.dart` code ka breakdown aur workflow hai:
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [AppTheme.primaryBlue, AppTheme.darkBlue]),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Column(
+                children: [
+                  Text('Prepare & Win Rewards', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('Attempt Free Mock Tests & Earn Coins!', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('Latest Available Tests', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+            const SizedBox(height: 12),
+            FutureBuilder<List<dynamic>>(
+              future: _latestTests,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text('Abhi koi tests load nahi hue.'),
+                    ),
+                  );
+                }
 
-**1. Imports & Entry Point**
-* `main()` function `QuizApp` widget ko run karta hai[cite: 1].
-* Theme configurations (`AppTheme`) aur external data services (`BloggerService`) ko import kiya gaya hai[cite: 1].
-
-**2. App Configuration (`QuizApp`)**
-* `MaterialApp` setup kiya gaya hai jisme `debugShowCheckedModeBanner: false`, title `'Mock Test Portal'`, custom theme, aur home screen `HomeScreen()` assigned hai[cite: 1].
-
-**3. Data Fetching & State (`_HomeScreenState`)**
-* `initState()` ke andar `BloggerService.fetchLatestTests()` Call karke API/Blogger post list asynchronous tarike se `_latestTests` Future variable mein store hoti hai[cite: 1, 2].
-
-**4. UI Structure (`HomeScreen`)**
-* **AppBar:** Title dikhata hai `'Mock Test Portal'`[cite: 1, 2].
-* **Banner Container:** Gradient background (Blue) ke saath poster/card jisme text hai: *"Prepare & Win Rewards"* aur *"Attempt Free Mock Tests & Earn Coins!"*[cite: 1, 2].
-* **Section Title:** `'Latest Available Tests'`[cite: 1, 2].
-* **FutureBuilder Execution:**
-  * **Loading State:** `ConnectionState.waiting` par loading spinner (`CircularProgressIndicator`) dikhata hai[cite: 1, 2].
-  * **Empty/No Data State:** Agar test list khali ho ya `hasData` na ho, toh card me text show hota hai: `"Abhi koi tests load nahi hue."`[cite: 1, 2].
-  * **Data Loaded State:** Data milne par `ListView.builder` list render karta hai[cite: 2]. Har test ek `Card` aur `ListTile` mein aata hai jisme test title aur ek red **"Start"** `ElevatedButton` diya gaya hai[cite: 2].
+                final posts = snapshot.data!;
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) {
+                    final post = posts[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: ListTile(
+                        title: Text(post['title'] ?? 'Quiz Test', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        trailing: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.startRed, foregroundColor: Colors.white),
+                          onPressed: () {
+                            if (post['url'] != null) {
+                              _launchURL(post['url']);
+                            }
+                          },
+                          child: const Text('Start'),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
