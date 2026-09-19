@@ -8,15 +8,24 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
-      - name: Copy Manifest to Root Android Folder
+
+      - name: Recreate Fresh Flutter Android Setup
         run: |
-          mkdir -p android
-          cp android/app/src/main/AndroidManifest.xml android/AndroidManifest.xml || true
-      - name: Install Dependencies
+          mkdir -p ../temp_app
+          flutter create --org com.example --project-name my_quiz_app ../temp_app
+          cp -r lib ../temp_app/
+          cp pubspec.yaml ../temp_app/
+          cp android/app/src/main/AndroidManifest.xml ../temp_app/android/app/src/main/AndroidManifest.xml || true
+          cp -r ../temp_app/* .
+          rm -rf ../temp_app
+
+      - name: Get Dependencies
         run: flutter pub get
-      - name: Build Debug APK
-        run: flutter build apk --debug --no-tree-shake-icons
-      - name: Upload APK
+
+      - name: Build APK
+        run: flutter build apk --debug
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
