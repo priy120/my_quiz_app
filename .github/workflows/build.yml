@@ -1,20 +1,37 @@
 name: Build Android APK
 on: [push]
+
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
+
+      - name: Rebuild Fresh Clean Android Configuration
+        run: |
+          rm -rf android
+          flutter create . --platforms=android --org=com.example
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' android/app/build.gradle.kts
+          sed -i 's/minSdkVersion 19/minSdkVersion 21/g' android/app/build.gradle.kts
+          echo 'android.useAndroidX=true' >> android/gradle.properties
+          echo 'android.enableJetifier=true' >> android/gradle.properties
 
       - name: Get Dependencies
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --debug --multidex
+        run: flutter build apk --debug
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
