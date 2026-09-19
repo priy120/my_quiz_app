@@ -1,22 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'screens/splash_screen.dart';
 
 void main() {
-  runApp(const QuizApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Enable Cookie Manager for keeping Google Login Session active
+  final WebViewCookieManager cookieManager = WebViewCookieManager();
+  cookieManager.setCookie(
+    const WebViewCookie(
+      name: 'auth_session',
+      value: 'active',
+      domain: 'letscompeteme.blogspot.com',
+    ),
+  );
+
+  runApp(const MyApp());
 }
 
-class QuizApp extends StatelessWidget {
-  const QuizApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'CompeteMe Portal',
       debugShowCheckedModeBanner: false,
-      title: 'CompeteMe Mock Test',
       theme: ThemeData(
-        primaryColor: const Color(0xFF1A73E8),
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A73E8)),
-        useMaterial3: true,
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
       ),
       home: const SplashScreen(),
     );
