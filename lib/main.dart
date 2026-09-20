@@ -5,11 +5,20 @@ import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Non-blocking background initialization
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp().timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {
+        debugPrint("Firebase init timed out - falling back safely.");
+        return Firebase.app();
+      },
+    );
   } catch (e) {
     debugPrint("Firebase initialization info: $e");
   }
+
   runApp(const CompeteMeApp());
 }
 
