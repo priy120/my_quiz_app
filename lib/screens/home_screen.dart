@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'login_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'test_series_screen.dart';
 import 'quiz_engine_screen.dart';
+import 'my_tests_screen.dart';
+import 'pdfs_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,104 +16,85 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
+  final List<Widget> _screens = [
+    const HomeDashboardView(),
+    const MyTestsScreen(),
+    const PdfScreen(),
+    const ProfileScreen(),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
+        elevation: 0,
         backgroundColor: const Color(0xFF1A237E),
-        elevation: 2,
-        title: Row(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const CircleAvatar(
-              backgroundColor: Colors.amber,
-              radius: 16,
-              child: Icon(Icons.person, color: Color(0xFF1A237E), size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'CompeteMe Portal',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    user?.email ?? 'Student Portal',
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: Colors.white70),
-                  ),
-                ],
+            Text(
+              'CompeteMe Portal',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: Colors.white,
               ),
+            ),
+            const Text(
+              'Student Learning Dashboard',
+              style: TextStyle(fontSize: 11, color: Colors.amberAccent),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_active_outlined, color: Colors.white),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No new notifications')),
-              );
-            },
+            icon: const Icon(Icons.notifications_none, color: Colors.white),
+            onPressed: () {},
           ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.amberAccent),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              }
-            },
-          )
         ],
       ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: [
-          _buildHomeTab(context),
-          const Center(
-            child: Text(
-              'My Purchased Tests & Attempts',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const Center(
-            child: Text(
-              'Free PDF Downloads Section',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-          _buildProfileTab(user),
-        ],
+        children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF1A237E),
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: Colors.grey.shade600,
         type: BottomNavigationBarType.fixed,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.assignment_turned_in), label: 'My Tests'),
-          BottomNavigationBarItem(icon: Icon(Icons.picture_as_pdf), label: 'PDFs'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_filled),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assignment_turned_in),
+            label: 'My Tests',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.picture_as_pdf),
+            label: 'PDFs',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildHomeTab(BuildContext context) {
+class HomeDashboardView extends StatelessWidget {
+  const HomeDashboardView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -119,74 +102,71 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // Banner Card
           Container(
-            height: 140,
             width: double.infinity,
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF1A237E), Color(0xFF3949AB)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.indigo.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                )
-              ],
+              borderRadius: BorderRadius.circular(16),
             ),
-            padding: const EdgeInsets.all(20),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       Text(
                         'Target Selection 2026 🎯',
-                        style: TextStyle(
-                          color: Colors.amber,
+                        style: GoogleFonts.poppins(
+                          color: Colors.amberAccent,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
                         ),
                       ),
-                      SizedBox(height: 6),
-                      Text(
-                        'Attempt RWA Model Full Length Mock Tests & Instant Analysis',
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Attempt Standard Full Length Mock Tests & Instant Analysis',
                         style: TextStyle(color: Colors.white, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.workspace_premium, size: 55, color: Colors.amber),
+                const Icon(
+                  Icons.verified_rounded,
+                  size: 48,
+                  color: Colors.amberAccent,
+                )
               ],
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
 
-          const Text(
+          Text(
             'Explore Categories',
-            style: TextStyle(
+            style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A237E),
+              color: const Color(0xFF1A237E),
             ),
           ),
           const SizedBox(height: 12),
 
-          // Main Grid
           GridView.count(
+            crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.1,
             children: [
-              _buildFeatureTile(
+              _buildCategoryCard(
                 context,
                 title: 'Test Series',
                 subtitle: 'Paid & Free Mocks',
-                icon: Icons.quiz_rounded,
+                icon: Icons.quiz_outlined,
                 color: Colors.orange.shade700,
                 onTap: () {
                   Navigator.push(
@@ -197,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
-              _buildFeatureTile(
+              _buildCategoryCard(
                 context,
                 title: 'Daily Quiz',
                 subtitle: 'Timer Based Test',
@@ -212,30 +192,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
-              _buildFeatureTile(
+              _buildCategoryCard(
                 context,
                 title: 'Free PDFs',
                 subtitle: 'Class Notes & Sheets',
-                icon: Icons.download_for_offline,
+                icon: Icons.picture_as_pdf_outlined,
                 color: Colors.blue.shade700,
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Free PDFs module coming soon!'),
+                      content: Text("Switching to PDFs Tab..."),
+                      duration: Duration(seconds: 1),
                     ),
                   );
                 },
               ),
-              _buildFeatureTile(
+              _buildCategoryCard(
                 context,
                 title: 'Current Affairs',
                 subtitle: 'Daily & Monthly',
-                icon: Icons.newspaper,
+                icon: Icons.newspaper_outlined,
                 color: Colors.purple.shade700,
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Current Affairs module coming soon!'),
+                      content: Text("Current Affairs Section Coming Soon!"),
                     ),
                   );
                 },
@@ -247,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeatureTile(
+  Widget _buildCategoryCard(
     BuildContext context, {
     required String title,
     required String subtitle,
@@ -255,71 +236,41 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+    return Card(
       elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(14.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: color.withOpacity(0.12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(icon, color: color, size: 28),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
                 title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
-              const SizedBox(height: 4),
               Text(
                 subtitle,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildProfileTab(User? user) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        children: [
-          const CircleAvatar(
-            radius: 40,
-            backgroundColor: Color(0xFF1A237E),
-            child: Icon(Icons.person, size: 50, color: Colors.white),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            user?.email ?? 'Student Portal',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          ListTile(
-            leading: const Icon(Icons.shopping_bag_outlined),
-            title: const Text('My Orders & Test Passes'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Help & Support'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
-          ),
-        ],
       ),
     );
   }
