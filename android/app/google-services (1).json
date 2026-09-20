@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "295041120734",
+    "project_id": "competeme1",
+    "storage_bucket": "competeme1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:295041120734:android:6177cffa261033dfd7454f",
+        "android_client_info": {
+          "package_name": "com.competeme.quizapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "295041120734-itpa8fpq5al2j7ukmjrra2tbmrps3v8i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.competeme.quizapp",
+            "certificate_hash": "5e8f16062ea3202cd11001e1b67a229a25a02800"
+          }
+        },
+        {
+          "client_id": "295041120734-57tdr546ekp8u26gh9oojnsbdtns6rk3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAn0E-EDE3lR-fuUJYNMeNAYVxVPtC9Mec"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "295041120734-57tdr546ekp8u26gh9oojnsbdtns6rk3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
