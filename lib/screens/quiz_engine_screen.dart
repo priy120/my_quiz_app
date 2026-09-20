@@ -1,9 +1,18 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class QuizEngineScreen extends StatefulWidget {
-  const QuizEngineScreen({super.key});
+  final String testId;
+  final String testTitle;
+
+  const QuizEngineScreen({
+    super.key,
+    this.testId = 'default_test',
+    this.testTitle = 'CompeteMe Live Mock Test',
+  });
 
   @override
   State<QuizEngineScreen> createState() => _QuizEngineScreenState();
@@ -12,7 +21,7 @@ class QuizEngineScreen extends StatefulWidget {
 class _QuizEngineScreenState extends State<QuizEngineScreen> {
   int currentQuestionIndex = 0;
   Timer? _timer;
-  int _secondsRemaining = 600; // 10 Minutes Timer
+  int _secondsRemaining = 600;
 
   final List<Map<String, dynamic>> questions = [
     {
@@ -48,13 +57,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   ];
 
   late List<int?> selectedAnswers;
-  late List<bool> isMarkedForReview;
 
   @override
   void initState() {
     super.initState();
     selectedAnswers = List<int?>.filled(questions.length, null);
-    isMarkedForReview = List<bool>.filled(questions.length, false);
     _startTimer();
   }
 
@@ -75,7 +82,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  void _submitTest() {
+  Future<void> _submitTest() async {
     _timer?.cancel();
     int correctCount = 0;
     int wrongCount = 0;
@@ -92,139 +99,89 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     }
 
     double totalScore = (correctCount * 2) - (wrongCount * 0.5);
+    if (totalScore < 0) totalScore = 0;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Column(
-          children: [
-            const Icon(Icons.stars_rounded, size: 48, color: Colors.amber),
-            const SizedBox(height: 8),
-            Text(
-              'Test Submitted! 🎉',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Your Score: ${totalScore < 0 ? 0 : totalScore} / ${questions.length * 2}',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A237E),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildScoreMetric('Correct', '$correctCount', Colors.green),
-                _buildScoreMetric('Wrong', '$wrongCount', Colors.red),
-                _buildScoreMetric('Skipped', '$unattemptedCount', Colors.grey),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A237E),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onPressed: () {
-              Navigator.pop(context); // Close Dialog
-              Navigator.pop(context); // Exit Quiz Screen
-            },
-            child: const Text('BACK TO DASHBOARD', style: TextStyle(color: Colors.white)),
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('test_attempts')
+          .doc(widget.testId)
+          .set({
+        'testId': widget.testId,
+        'testTitle': widget.testTitle,
+        'score': '${totalScore.toStringAsFixed(0)} / ${questions.length * 2}',
+        'status': 'Completed',
+        'attemptedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Column(
+            children: [
+              const Icon(Icons.stars_rounded, size: 48, color: Colors.amber),
+              const SizedBox(height: 8),
+              Text('Test Submitted! 🎉',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+            ],
           ),
-        ],
-      ),
-    );
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Your Score: ${totalScore.toStringAsFixed(0)} / ${questions.length * 2}',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1A237E),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildScoreMetric('Correct', '$correctCount', Colors.green),
+                  _buildScoreMetric('Wrong', '$wrongCount', Colors.red),
+                  _buildScoreMetric('Skipped', '$unattemptedCount', Colors.grey),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A237E),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+              },
+              child: const Text('BACK TO DASHBOARD',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildScoreMetric(String label, String value, Color color) {
     return Column(
       children: [
-        Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        Text(value,
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold, color: color)),
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
-    );
-  }
-
-  void _openQuestionPalette() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Question Palette',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              GridView.builder(
-                shrinkWrap: true,
-                itemCount: questions.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 5,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemBuilder: (context, index) {
-                  Color btnColor = Colors.grey.shade300;
-                  Color textColor = Colors.black;
-
-                  if (selectedAnswers[index] != null) {
-                    btnColor = Colors.green;
-                    textColor = Colors.white;
-                  } else if (isMarkedForReview[index]) {
-                    btnColor = Colors.purple;
-                    textColor = Colors.white;
-                  }
-
-                  if (currentQuestionIndex == index) {
-                    btnColor = const Color(0xFF1A237E);
-                    textColor = Colors.white;
-                  }
-
-                  return InkWell(
-                    onTap: () {
-                      setState(() => currentQuestionIndex = index);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: btnColor,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${index + 1}',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -241,9 +198,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A237E),
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          'CompeteMe Live Mock Test',
-          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+          widget.testTitle,
+          style: GoogleFonts.poppins(
+              fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
           Container(
@@ -259,14 +218,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                 const SizedBox(width: 4),
                 Text(
                   _formatTime(_secondsRemaining),
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.grid_view_rounded, color: Colors.white),
-            onPressed: _openQuestionPalette,
           ),
         ],
       ),
@@ -280,7 +236,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade100,
                     borderRadius: BorderRadius.circular(6),
@@ -296,19 +253,22 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                 ),
                 Text(
                   'Q ${currentQuestionIndex + 1} / ${questions.length}',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold, fontSize: 14),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Text(
                   currentQuestion['question'],
-                  style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.poppins(
+                      fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -317,7 +277,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               child: ListView.builder(
                 itemCount: currentQuestion['options'].length,
                 itemBuilder: (context, optIndex) {
-                  final isSelected = selectedAnswers[currentQuestionIndex] == optIndex;
+                  final isSelected =
+                      selectedAnswers[currentQuestionIndex] == optIndex;
 
                   return Card(
                     elevation: isSelected ? 3 : 1,
@@ -325,7 +286,9 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                       side: BorderSide(
-                        color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300,
+                        color: isSelected
+                            ? const Color(0xFF1A237E)
+                            : Colors.grey.shade300,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -372,7 +335,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                     onPressed: () {
                       setState(() => currentQuestionIndex++);
                     },
-                    child: const Text('Next Question', style: TextStyle(color: Colors.white)),
+                    child: const Text('Next Question',
+                        style: TextStyle(color: Colors.white)),
                   )
                 else
                   ElevatedButton(
@@ -380,7 +344,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       backgroundColor: Colors.green.shade700,
                     ),
                     onPressed: _submitTest,
-                    child: const Text('Submit Test', style: TextStyle(color: Colors.white)),
+                    child: const Text('Submit Test',
+                        style: TextStyle(color: Colors.white)),
                   ),
               ],
             ),
