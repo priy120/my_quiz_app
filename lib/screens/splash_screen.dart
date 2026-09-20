@@ -76,7 +76,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Rojgar With Ankit Inspired Learning Portal',
+              'Your Ultimate Learning Portal',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 14,
