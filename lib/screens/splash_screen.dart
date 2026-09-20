@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
@@ -15,34 +16,30 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _forceNavigateNext();
+    _checkAndNavigate();
   }
 
-  Future<void> _forceNavigateNext() async {
-    // Hard 2-second delay for splash animation
+  Future<void> _checkAndNavigate() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
-    Widget targetScreen = const LoginScreen();
+    Widget nextScreen = const LoginScreen();
 
-    try {
-      // Safe check with 1-second timeout limit
-      final user = await FirebaseAuth.instance
-          .authStateChanges()
-          .first
-          .timeout(const Duration(seconds: 1));
-
-      if (user != null) {
-        targetScreen = const HomeScreen();
+    if (Firebase.apps.isNotEmpty) {
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          nextScreen = const HomeScreen();
+        }
+      } catch (e) {
+        debugPrint("Auth check info: $e");
       }
-    } catch (e) {
-      debugPrint("Auth check skipped or failed: $e");
     }
 
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => targetScreen),
+        MaterialPageRoute(builder: (context) => nextScreen),
       );
     }
   }
