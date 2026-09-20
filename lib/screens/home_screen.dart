@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
+import 'test_series_screen.dart';
+import 'quiz_engine_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,11 +13,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-
-  final List<String> banners = [
-    'https://via.placeholder.com/600x250/1A237E/FFFFFF?text=UP+Police+Constable+Mock+Test',
-    'https://via.placeholder.com/600x250/0D47A1/FFFFFF?text=SSC+CGL+2026+Test+Series',
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -34,25 +31,36 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Icon(Icons.person, color: Color(0xFF1A237E), size: 20),
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'CompeteMe Portal',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                Text(
-                  user?.email ?? 'Student Portal',
-                  style: const TextStyle(fontSize: 11, color: Colors.white70),
-                ),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'CompeteMe Portal',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    user?.email ?? 'Student Portal',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, color: Colors.white70),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_active_outlined, color: Colors.white),
-            onPressed: () {},
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No new notifications')),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.amberAccent),
@@ -72,8 +80,18 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _selectedIndex,
         children: [
           _buildHomeTab(context),
-          const Center(child: Text('My Purchased Tests & Attempts', style: TextStyle(fontSize: 16))),
-          const Center(child: Text('Free PDF Downloads Section', style: TextStyle(fontSize: 16))),
+          const Center(
+            child: Text(
+              'My Purchased Tests & Attempts',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const Center(
+            child: Text(
+              'Free PDF Downloads Section',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
           _buildProfileTab(user),
         ],
       ),
@@ -99,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Offer Banner
+          // Banner Card
           Container(
             height: 140,
             width: double.infinity,
@@ -126,11 +144,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: const [
                       Text(
                         'Target Selection 2026 🎯',
-                        style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          color: Colors.amber,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       SizedBox(height: 6),
                       Text(
-                        'Attempt RWA Model Full Length Mock Tests & Analysis',
+                        'Attempt RWA Model Full Length Mock Tests & Instant Analysis',
                         style: TextStyle(color: Colors.white, fontSize: 12),
                       ),
                     ],
@@ -144,7 +166,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const Text(
             'Explore Categories',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A237E)),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A237E),
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -163,18 +189,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icons.quiz_rounded,
                 color: Colors.orange.shade700,
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Test Series Module Opening in Next Step!')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TestSeriesScreen(),
+                    ),
                   );
                 },
               ),
               _buildFeatureTile(
                 context,
                 title: 'Daily Quiz',
-                subtitle: 'Topic Wise Tests',
+                subtitle: 'Timer Based Test',
                 icon: Icons.timer_outlined,
                 color: Colors.green.shade700,
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const QuizEngineScreen(),
+                    ),
+                  );
+                },
               ),
               _buildFeatureTile(
                 context,
@@ -182,7 +218,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 subtitle: 'Class Notes & Sheets',
                 icon: Icons.download_for_offline,
                 color: Colors.blue.shade700,
-                onTap: () {},
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Free PDFs module coming soon!'),
+                    ),
+                  );
+                },
               ),
               _buildFeatureTile(
                 context,
@@ -190,7 +232,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 subtitle: 'Daily & Monthly',
                 icon: Icons.newspaper,
                 color: Colors.purple.shade700,
-                onTap: () {},
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Current Affairs module coming soon!'),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -254,13 +302,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            user?.email ?? 'Student',
+            user?.email ?? 'Student Portal',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
           ListTile(
             leading: const Icon(Icons.shopping_bag_outlined),
-            title: const Text('My Orders'),
+            title: const Text('My Orders & Test Passes'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {},
           ),
