@@ -15,20 +15,36 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
-      final user = FirebaseAuth.instance.currentUser;
+    _forceNavigateNext();
+  }
+
+  Future<void> _forceNavigateNext() async {
+    // Hard 2-second delay for splash animation
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+
+    Widget targetScreen = const LoginScreen();
+
+    try {
+      // Safe check with 1-second timeout limit
+      final user = await FirebaseAuth.instance
+          .authStateChanges()
+          .first
+          .timeout(const Duration(seconds: 1));
+
       if (user != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
+        targetScreen = const HomeScreen();
       }
-    });
+    } catch (e) {
+      debugPrint("Auth check skipped or failed: $e");
+    }
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => targetScreen),
+      );
+    }
   }
 
   @override
