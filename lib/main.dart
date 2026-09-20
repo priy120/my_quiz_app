@@ -6,11 +6,18 @@ import 'screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Safe synchronous initialization
   try {
-    await Firebase.initializeApp();
+    // Direct explicit initialization so native android failure cannot block app
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyDummyKeyReplaceIfRequired",
+        appId: "1:295041120734:android:6177cffa261033dfd7454f",
+        messagingSenderId: "295041120734",
+        projectId: "competeme1",
+      ),
+    );
   } catch (e) {
-    debugPrint("Firebase Native Init Warning: $e");
+    debugPrint("Firebase explicit init: $e");
   }
 
   runApp(const CompeteMeApp());
