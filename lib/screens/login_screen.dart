@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 Text(
-                  'Rojgar With Ankit Inspired Learning Portal',
+                  'Your Ultimate Exam Preparation Portal',
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
                 const SizedBox(height: 20),
