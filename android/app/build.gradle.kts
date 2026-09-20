@@ -19,7 +19,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.quizapp"
+        applicationId = "com.competeme.quizapp"
         minSdk = 21
         targetSdk = 34
         versionCode = 1
