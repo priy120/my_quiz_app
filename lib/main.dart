@@ -7,10 +7,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    // Direct explicit initialization so native android failure cannot block app
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: "AIzaSyDummyKeyReplaceIfRequired",
+        apiKey: "AIzaSyBgcjqhhLZMg7I8sAmJoh3c364giGMJr6w",
         appId: "1:295041120734:android:6177cffa261033dfd7454f",
         messagingSenderId: "295041120734",
         projectId: "competeme1",
