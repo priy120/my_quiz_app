@@ -5,8 +5,11 @@ import 'quiz_engine_screen.dart';
 class TestSeriesScreen extends StatelessWidget {
   const TestSeriesScreen({super.key});
 
+  final String razorpayKey = "rzp_live_TcFnwjnPCAzll2";
+
   final List<Map<String, dynamic>> testPacks = const [
     {
+      'id': 'up_police_2026',
       'title': 'UP Police Constable 2026 Full Test Series',
       'tests': '25 Full Tests + 50 Sectional',
       'price': 149,
@@ -14,6 +17,7 @@ class TestSeriesScreen extends StatelessWidget {
       'badge': 'PAID PASS',
     },
     {
+      'id': 'ssc_cgl_free',
       'title': 'SSC CGL Tier-1 All India Free Mock Test',
       'tests': '1 Free Demo Test Available',
       'price': 0,
@@ -21,6 +25,7 @@ class TestSeriesScreen extends StatelessWidget {
       'badge': 'FREE MOCK',
     },
     {
+      'id': 'rrb_ntpc_2026',
       'title': 'RRB NTPC & Group D Special Test Pass',
       'tests': '30 Full Tests',
       'price': 199,
@@ -29,7 +34,7 @@ class TestSeriesScreen extends StatelessWidget {
     },
   ];
 
-  void _processPayment(BuildContext context, String title, int price) {
+  void _openRazorpayCheckout(BuildContext context, String title, int price) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -50,31 +55,37 @@ class TestSeriesScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              const Icon(Icons.payment, size: 48, color: Color(0xFF1A237E)),
+              const Icon(Icons.account_balance_wallet,
+                  size: 48, color: Color(0xFF1A237E)),
               const SizedBox(height: 12),
               Text(
-                'Checkout - CompeteMe Pass',
+                'Razorpay Payment Gateway',
                 style: GoogleFonts.poppins(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
+              Text(
+                'Merchant Key: $razorpayKey',
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey),
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
               ),
               const SizedBox(height: 16),
               Text(
-                'Amount Payable: ₹$price',
+                'Amount to Pay: ₹$price',
                 style: GoogleFonts.poppins(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.green[700],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -95,7 +106,7 @@ class TestSeriesScreen extends StatelessWidget {
                     );
                   },
                   child: const Text(
-                    'PAY VIA RAZORPAY / UPI',
+                    'PAY VIA UPI / PHONEPE / GPAY',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -114,8 +125,16 @@ class TestSeriesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Test Series & Mocks'),
         backgroundColor: const Color(0xFF1A237E),
+        elevation: 0,
+        title: Text(
+          'Test Series & Mocks',
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       backgroundColor: const Color(0xFFF4F6FA),
       body: ListView.builder(
@@ -197,7 +216,7 @@ class TestSeriesScreen extends StatelessWidget {
                       ),
                       onPressed: () {
                         if (isPaid) {
-                          _processPayment(
+                          _openRazorpayCheckout(
                             context,
                             pack['title'],
                             pack['price'],
@@ -206,7 +225,10 @@ class TestSeriesScreen extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const QuizEngineScreen(),
+                              builder: (context) => QuizEngineScreen(
+                                testId: pack['id'],
+                                testTitle: pack['title'],
+                              ),
                             ),
                           );
                         }
