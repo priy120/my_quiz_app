@@ -47,13 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => isLoading = true);
 
-    // Hard fallback navigation if Firebase takes time
-    Timer(const Duration(milliseconds: 1800), () {
-      if (mounted && isLoading) {
-        _navigateToHome();
-      }
-    });
-
     try {
       if (Firebase.apps.isNotEmpty) {
         if (isLogin) {
@@ -116,12 +109,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'CompeteMe',
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A237E),
+                    color: const Color(0xFF1A237E),
                   ),
                 ),
                 Text(
