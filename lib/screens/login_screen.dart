@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package0cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'home_screen.dart';
 
@@ -37,16 +37,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => isLoading = true);
 
-    // Direct navigation fallback timer (1.5s max wait)
-    Timer(const Duration(milliseconds: 1500), () {
-      if (mounted && isLoading) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
-    });
-
     try {
       if (isLogin) {
         await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -54,32 +44,51 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _passwordController.text.trim(),
         );
       } else {
+        // 1. Create Auth Account
         UserCredential userCredential =
             await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'phone': _phoneController.text.trim(),
-          'examGoal': selectedExam,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        // 2. Safe Firestore Document Creation
+        try {
+          if (userCredential.user != null) {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(userCredential.user!.uid)
+                .set({
+              'name': _nameController.text.trim(),
+              'email': _emailController.text.trim(),
+              'phone': _phoneController.text.trim(),
+              'examGoal': selectedExam,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        } catch (dbError) {
+          debugPrint("Firestore save error (bypassed): $dbError");
+        }
       }
 
+      // Always Navigate to Home after Auth success
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Authentication failed.'),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     } catch (e) {
-      debugPrint("Auth notice: $e");
+      debugPrint("Auth error: $e");
       if (mounted) {
         Navigator.pushReplacement(
           context,
