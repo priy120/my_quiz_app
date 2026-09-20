@@ -6,10 +6,11 @@ import 'screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Safe synchronous initialization
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    debugPrint("Firebase init error: $e");
+    debugPrint("Firebase Native Init Warning: $e");
   }
 
   runApp(const CompeteMeApp());
