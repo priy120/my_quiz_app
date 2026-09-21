@@ -1,9 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PdfScreen extends StatelessWidget {
   const PdfScreen({super.key});
+
+  Future<void> _openPdfUrl(BuildContext context, String urlString) async {
+    if (urlString.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("PDF link is invalid or empty.")),
+      );
+      return;
+    }
+
+    final Uri url = Uri.parse(urlString);
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Could not open PDF link.")),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error opening PDF: $e")),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +50,7 @@ class PdfScreen extends StatelessWidget {
 
           if (docs.isEmpty) {
             return const Center(
-              child: Text("Abhi koi PDF upload nahi hui hai. Admin Panel se upload karein."),
+              child: Text("Abhi koi PDF Notes upload nahi hain. Admin Panel se add karein."),
             );
           }
 
@@ -36,6 +63,7 @@ class PdfScreen extends StatelessWidget {
               final category = data['category'] ?? 'Notes';
               final size = data['size'] ?? '2.0 MB';
               final date = data['date'] ?? '2026';
+              final pdfUrl = data['url'] ?? '';
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -108,16 +136,9 @@ class PdfScreen extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.download_rounded,
+                        icon: const Icon(Icons.remove_red_eye,
                             color: Color(0xFF1A237E)),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("Downloading $title..."),
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                        },
+                        onPressed: () => _openPdfUrl(context, pdfUrl),
                       ),
                     ],
                   ),
