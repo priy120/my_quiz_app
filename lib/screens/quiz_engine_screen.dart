@@ -23,46 +23,48 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   Timer? _timer;
   int _secondsRemaining = 600;
 
-  final List<Map<String, dynamic>> questions = [
-    {
-      'section': 'General Knowledge',
-      'question': 'What is the capital of India?',
-      'options': ['Mumbai', 'New Delhi', 'Kolkata', 'Chennai'],
-      'correctIndex': 1,
-    },
-    {
-      'section': 'General Knowledge',
-      'question': 'Which planet is known as the Red Planet?',
-      'options': ['Venus', 'Mars', 'Jupiter', 'Saturn'],
-      'correctIndex': 1,
-    },
-    {
-      'section': 'Mathematics',
-      'question': 'What is the value of (12 x 12) / 4?',
-      'options': ['24', '36', '48', '144'],
-      'correctIndex': 1,
-    },
-    {
-      'section': 'Mathematics',
-      'question': 'What is the derivative of x^2 with respect to x?',
-      'options': ['x', '2x', 'x^2', '2'],
-      'correctIndex': 1,
-    },
-    {
-      'section': 'Reasoning',
-      'question': 'If A = 1, B = 2, C = 3, then CAT = ?',
-      'options': ['24', '20', '21', '22'],
-      'correctIndex': 0,
-    },
-  ];
-
+  List<Map<String, dynamic>> questions = [];
+  bool _isLoadingQuestions = true;
   late List<int?> selectedAnswers;
 
   @override
   void initState() {
     super.initState();
-    selectedAnswers = List<int?>.filled(questions.length, null);
-    _startTimer();
+    _fetchQuestionsFromFirestore();
+  }
+
+  Future<void> _fetchQuestionsFromFirestore() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('mock_tests')
+          .doc(widget.testId)
+          .collection('questions')
+          .orderBy('questionNo', descending: false)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          questions = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'section': data['section'] ?? 'General',
+              'question': data['questionText'] ?? '',
+              'imageUrl': data['imageUrl'] ?? '',
+              'options': List<String>.from(data['options'] ?? []),
+              'correctIndex': data['correctIndex'] ?? 0,
+              'solutionText': data['solutionText'] ?? '',
+            };
+          }).toList();
+          selectedAnswers = List<int?>.filled(questions.length, null);
+          _isLoadingQuestions = false;
+        });
+        _startTimer();
+      } else {
+        setState(() => _isLoadingQuestions = false);
+      }
+    } catch (e) {
+      setState(() => _isLoadingQuestions = false);
+    }
   }
 
   void _startTimer() {
@@ -103,6 +105,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // 1. Save User Attempt History
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -112,7 +115,22 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         'testId': widget.testId,
         'testTitle': widget.testTitle,
         'score': '${totalScore.toStringAsFixed(0)} / ${questions.length * 2}',
+        'correctCount': correctCount,
+        'wrongCount': wrongCount,
         'status': 'Completed',
+        'attemptedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Save Leaderboard Entry
+      await FirebaseFirestore.instance
+          .collection('leaderboards')
+          .doc(widget.testId)
+          .collection('ranks')
+          .doc(user.uid)
+          .set({
+        'userUid': user.uid,
+        'userName': user.displayName ?? 'Student',
+        'score': totalScore,
         'attemptedAt': FieldValue.serverTimestamp(),
       });
     }
@@ -193,6 +211,24 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingQuestions) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (questions.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.testTitle),
+          backgroundColor: const Color(0xFF1A237E),
+        ),
+        body: const Center(
+          child: Text("No questions uploaded in this test yet."),
+        ),
+      );
+    }
+
     final currentQuestion = questions[currentQuestionIndex];
 
     return Scaffold(
@@ -275,7 +311,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
-                itemCount: currentQuestion['options'].length,
+                itemCount: (currentQuestion['options'] as List).length,
                 itemBuilder: (context, optIndex) {
                   final isSelected =
                       selectedAnswers[currentQuestionIndex] == optIndex;
