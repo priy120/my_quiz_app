@@ -1,134 +1,102 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'quiz_engine_screen.dart';
 
-class TestSeriesScreen extends StatelessWidget {
+class TestSeriesScreen extends StatefulWidget {
   const TestSeriesScreen({super.key});
 
+  @override
+  State<TestSeriesScreen> createState() => _TestSeriesScreenState();
+}
+
+class _TestSeriesScreenState extends State<TestSeriesScreen> {
+  late Razorpay _razorpay;
   final String razorpayKey = "rzp_live_TcFnwjnPCAzll2";
+  final int passPrice = 149; // CompeteMe Yearly Pass Price
 
-  final List<Map<String, dynamic>> testPacks = const [
-    {
-      'id': 'up_police_2026',
-      'title': 'UP Police Constable 2026 Full Test Series',
-      'tests': '25 Full Tests + 50 Sectional',
-      'price': 149,
-      'isPaid': true,
-      'badge': 'PAID PASS',
-    },
-    {
-      'id': 'ssc_cgl_free',
-      'title': 'SSC CGL Tier-1 All India Free Mock Test',
-      'tests': '1 Free Demo Test Available',
-      'price': 0,
-      'isPaid': false,
-      'badge': 'FREE MOCK',
-    },
-    {
-      'id': 'rrb_ntpc_2026',
-      'title': 'RRB NTPC & Group D Special Test Pass',
-      'tests': '30 Full Tests',
-      'price': 199,
-      'isPaid': true,
-      'badge': 'PAID PASS',
-    },
-  ];
-
-  void _openRazorpayCheckout(BuildContext context, String title, int price) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Icon(Icons.account_balance_wallet,
-                  size: 48, color: Color(0xFF1A237E)),
-              const SizedBox(height: 12),
-              Text(
-                'Razorpay Payment Gateway',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Merchant Key: $razorpayKey',
-                style: const TextStyle(fontSize: 10, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Amount to Pay: ₹$price',
-                style: GoogleFonts.poppins(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green[700],
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A237E),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Payment Successful for $title! Pass Activated."),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    'PAY VIA UPI / PHONEPE / GPAY',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
   @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  void _buyCompeteMePass() {
+    final user = FirebaseAuth.instance.currentUser;
+    var options = {
+      'key': razorpayKey,
+      'amount': passPrice * 100, // Amount in Paise
+      'name': 'CompeteMe Pass',
+      'description': '1 Year Unlimited Access to All Test Series',
+      'prefill': {
+        'contact': user?.phoneNumber ?? '7678898727',
+        'email': user?.email ?? 'priyanshu2001pal@gmail.com'
+      },
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      debugPrint("Razorpay Error: $e");
+    }
+  }
+
+  Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // User Document me Pass Active Mark Karo
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'hasActivePass': true,
+        'passActivatedAt': FieldValue.serverTimestamp(),
+        'paymentId': response.paymentId,
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("CompeteMe Pass Activated! All Tests Unlocked 🎉"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Payment Failed: ${response.message}"),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {}
+
+  @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A237E),
         elevation: 0,
         title: Text(
-          'Test Series & Mocks',
+          'CompeteMe Test Pass',
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontSize: 18,
@@ -137,123 +105,174 @@ class TestSeriesScreen extends StatelessWidget {
         ),
       ),
       backgroundColor: const Color(0xFFF4F6FA),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16.0),
-        itemCount: testPacks.length,
-        itemBuilder: (context, index) {
-          final pack = testPacks[index];
-          final isPaid = pack['isPaid'] as bool;
+      body: user == null
+          ? const Center(child: Text("Please login first"))
+          : StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .snapshots(),
+              builder: (context, userSnapshot) {
+                final userData =
+                    userSnapshot.data?.data() as Map<String, dynamic>? ?? {};
+                final bool hasPass = userData['hasActivePass'] ?? false;
 
-          return Card(
-            margin: const EdgeInsets.only(bottom: 16),
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isPaid
-                              ? Colors.orange.shade100
-                              : Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(6),
+                return Column(
+                  children: [
+                    // Testbook Style Pass Card Top Banner
+                    Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: hasPass
+                              ? [Colors.green.shade800, Colors.green.shade600]
+                              : [const Color(0xFF1A237E), Colors.indigo.shade600],
                         ),
-                        child: Text(
-                          pack['badge'],
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: isPaid
-                                ? Colors.orange.shade900
-                                : Colors.green.shade900,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  hasPass ? 'PASS ACTIVE 🎉' : 'COMPETEME PASS',
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.amberAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  hasPass
+                                      ? 'You have unlimited access to all tests!'
+                                      : 'Unlock All 100+ Mock Tests for 1 Year',
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 12),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                      Text(
-                        isPaid ? '₹${pack['price']}' : 'FREE',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isPaid
-                              ? const Color(0xFF1A237E)
-                              : Colors.green.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    pack['title'],
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    pack['tests'],
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1A237E),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      onPressed: () {
-                        if (isPaid) {
-                          _openRazorpayCheckout(
-                            context,
-                            pack['title'],
-                            pack['price'],
-                          );
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => QuizEngineScreen(
-                                testId: pack['id'],
-                                testTitle: pack['title'],
+                          if (!hasPass)
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber,
+                                foregroundColor: Colors.black,
+                              ),
+                              onPressed: _buyCompeteMePass,
+                              child: Text(
+                                'BUY @ ₹$passPrice',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
-                          );
-                        }
-                      },
-                      icon: Icon(
-                        isPaid ? Icons.lock_open : Icons.play_arrow,
-                        color: Colors.white,
-                      ),
-                      label: Text(
-                        isPaid
-                            ? 'BUY TEST SERIES (₹${pack['price']})'
-                            : 'START FREE MOCK TEST',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
+
+                    // Live Test Series List
+                    Expanded(
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('mock_tests')
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+
+                          final docs = snapshot.data?.docs ?? [];
+
+                          if (docs.isEmpty) {
+                            return Center(
+                              child: Text(
+                                'No Test Series Available Yet',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: docs.length,
+                            itemBuilder: (context, index) {
+                              final doc = docs[index];
+                              final pack = doc.data() as Map<String, dynamic>;
+                              final testId = doc.id;
+                              final title = pack['title'] ?? 'Mock Test';
+                              final category =
+                                  pack['category'] ?? 'General Exam';
+                              final durationMinutes =
+                                  pack['durationMinutes'] ?? 60;
+                              final isFree = pack['isFree'] ?? false;
+
+                              final bool canAttempt = isFree || hasPass;
+
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: ListTile(
+                                  title: Text(
+                                    title,
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14),
+                                  ),
+                                  subtitle: Text(
+                                      '$category • $durationMinutes Mins'),
+                                  trailing: canAttempt
+                                      ? ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFF1A237E),
+                                          ),
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    QuizEngineScreen(
+                                                  testId: testId,
+                                                  testTitle: title,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          child: const Text('START',
+                                              style: TextStyle(
+                                                  color: Colors.white)),
+                                        )
+                                      : ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                Colors.grey.shade400,
+                                          ),
+                                          onPressed: _buyCompeteMePass,
+                                          icon: const Icon(Icons.lock,
+                                              size: 16, color: Colors.black87),
+                                          label: const Text('UNLOCK',
+                                              style: TextStyle(
+                                                  color: Colors.black87)),
+                                        ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }
