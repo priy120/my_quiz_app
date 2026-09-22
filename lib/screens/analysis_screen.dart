@@ -38,25 +38,27 @@ class AnalysisScreen extends StatelessWidget {
           style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         actions: [
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.black,
-              margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SolutionsScreen(
-                    testId: testId,
-                    testTitle: testTitle,
+          Padding(
+            padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SolutionsScreen(
+                      testId: testId,
+                      testTitle: testTitle,
+                    ),
                   ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.check_circle_outline, size: 16),
-            label: const Text('SOLUTION', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                );
+              },
+              icon: const Icon(Icons.check_circle_outline, size: 16),
+              label: const Text('SOLUTION', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
           ),
         ],
       ),
