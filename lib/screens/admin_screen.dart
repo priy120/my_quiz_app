@@ -16,10 +16,34 @@ class _AdminScreenState extends State<AdminScreen> {
 
   // Controllers for Mock Test Creation
   final TextEditingController _testTitleController = TextEditingController();
-  final TextEditingController _testCategoryController = TextEditingController();
-  final TextEditingController _durationMinutesController = TextEditingController();
-  final TextEditingController _totalMarksController = TextEditingController();
+  final TextEditingController _durationMinutesController = TextEditingController(text: '60');
+  final TextEditingController _totalMarksController = TextEditingController(text: '200');
+  final TextEditingController _pyqYearController = TextEditingController(text: '2025');
+  final TextEditingController _pyqShiftController = TextEditingController(text: 'Shift 1');
+
+  String _selectedCategory = 'SSC CGL';
+  String _selectedTestType = 'Full Mock'; // Full Mock, PYQ, Sectional
   bool _isFreeTest = false;
+
+  final List<String> _categories = [
+    'SSC CGL',
+    'SSC CPO',
+    'SSC CHSL',
+    'SSC MTS',
+    'SSC GD',
+    'Railways',
+    'UP Police',
+    'Banking',
+    'GK Booster',
+    'Maths Booster',
+    'English Booster',
+  ];
+
+  final List<String> _testTypes = [
+    'Full Mock',
+    'PYQ',
+    'Sectional',
+  ];
 
   // Controllers for JSON Questions Upload
   final TextEditingController _jsonInputController = TextEditingController();
@@ -40,10 +64,10 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  // 1. Create Mock Test Package
+  // 1. Create Advanced Test Package
   Future<void> _createMockTestPackage() async {
     if (_testTitleController.text.trim().isEmpty) {
-      _showSnackbar('Please enter Mock Test Title');
+      _showSnackbar('Please enter Test Title');
       return;
     }
 
@@ -53,19 +77,17 @@ class _AdminScreenState extends State<AdminScreen> {
       DocumentReference docRef =
           await FirebaseFirestore.instance.collection('mock_tests').add({
         'title': _testTitleController.text.trim(),
-        'category': _testCategoryController.text.trim().isEmpty
-            ? 'General Exam'
-            : _testCategoryController.text.trim(),
-        'durationMinutes':
-            int.tryParse(_durationMinutesController.text.trim()) ?? 60,
-        'totalMarks':
-            int.tryParse(_totalMarksController.text.trim()) ?? 100,
+        'category': _selectedCategory,
+        'testType': _selectedTestType,
+        'durationMinutes': int.tryParse(_durationMinutesController.text.trim()) ?? 60,
+        'totalMarks': int.tryParse(_totalMarksController.text.trim()) ?? 200,
         'isFree': _isFreeTest,
+        'pyqYear': _selectedTestType == 'PYQ' ? _pyqYearController.text.trim() : '',
+        'pyqShift': _selectedTestType == 'PYQ' ? _pyqShiftController.text.trim() : '',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      _showSnackbar('Mock Test Created! Select it in JSON Upload tab.',
-          isSuccess: true);
+      _showSnackbar('Test Package Created! Auto-selected for JSON upload.', isSuccess: true);
 
       setState(() {
         _selectedTestId = docRef.id;
@@ -73,9 +95,6 @@ class _AdminScreenState extends State<AdminScreen> {
       });
 
       _testTitleController.clear();
-      _testCategoryController.clear();
-      _durationMinutesController.clear();
-      _totalMarksController.clear();
       _isFreeTest = false;
     } catch (e) {
       _showSnackbar('Error creating test: $e');
@@ -84,10 +103,10 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // 2. Upload JSON Questions in Selected Mock Test
+  // 2. Upload JSON Questions & Explanations Array
   Future<void> _uploadQuestionsJson() async {
     if (_selectedTestId == null || _selectedTestId!.isEmpty) {
-      _showSnackbar('Please select a Mock Test first');
+      _showSnackbar('Please select a Mock Test Package first');
       return;
     }
 
@@ -112,18 +131,17 @@ class _AdminScreenState extends State<AdminScreen> {
         batch.set(docRef, {
           'questionNo': q['questionNo'] ?? 1,
           'section': q['section'] ?? 'General',
-          'questionText': q['questionText'] ?? '',
+          'questionText': q['questionText'] ?? q['questionText_en'] ?? '',
           'imageUrl': q['imageUrl'] ?? '',
-          'options': q['options'] ?? [],
+          'options': q['options'] ?? q['options_en'] ?? [],
           'correctIndex': q['correctIndex'] ?? 0,
-          'solutionText': q['solutionText'] ?? '',
+          'solutionText': q['solutionText'] ?? q['solutionText_en'] ?? 'Detailed explanation coming soon.',
           'solutionImageUrl': q['solutionImageUrl'] ?? '',
         });
       }
 
       await batch.commit();
-      _showSnackbar('All ${jsonList.length} Questions Uploaded Successfully!',
-          isSuccess: true);
+      _showSnackbar('All ${jsonList.length} Questions & Solutions Uploaded Successfully!', isSuccess: true);
       _jsonInputController.clear();
     } catch (e) {
       _showSnackbar('Invalid JSON Format or Firebase Error: $e');
@@ -132,11 +150,10 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // 3. Upload PDF Notes
+  // 3. Upload PDF Study Material
   Future<void> _uploadPdfNotes() async {
-    if (_pdfTitleController.text.trim().isEmpty ||
-        _pdfUrlController.text.trim().isEmpty) {
-      _showSnackbar('Please enter PDF Title and valid Link');
+    if (_pdfTitleController.text.trim().isEmpty || _pdfUrlController.text.trim().isEmpty) {
+      _showSnackbar('Please enter PDF Title and valid Public URL');
       return;
     }
 
@@ -145,24 +162,20 @@ class _AdminScreenState extends State<AdminScreen> {
     try {
       await FirebaseFirestore.instance.collection('pdfs').add({
         'title': _pdfTitleController.text.trim(),
-        'category': _pdfCategoryController.text.trim().isEmpty
-            ? 'General Notes'
-            : _pdfCategoryController.text.trim(),
-        'size': _pdfSizeController.text.trim().isEmpty
-            ? '2.5 MB'
-            : _pdfSizeController.text.trim(),
+        'category': _pdfCategoryController.text.trim().isEmpty ? _selectedCategory : _pdfCategoryController.text.trim(),
+        'size': _pdfSizeController.text.trim().isEmpty ? '2.5 MB' : _pdfSizeController.text.trim(),
         'url': _pdfUrlController.text.trim(),
         'date': '2026',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      _showSnackbar('PDF Notes Uploaded Successfully!', isSuccess: true);
+      _showSnackbar('PDF Study Material Uploaded Successfully!', isSuccess: true);
       _pdfTitleController.clear();
       _pdfCategoryController.clear();
       _pdfSizeController.clear();
       _pdfUrlController.clear();
     } catch (e) {
-      _showSnackbar('Error uploading PDF: $e');
+      _showSnackbar('Error publishing PDF: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -174,12 +187,8 @@ class _AdminScreenState extends State<AdminScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A237E),
         title: Text(
-          'CompeteMe Admin Control',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 16,
-          ),
+          'CompeteMe Admin Portal',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
         ),
       ),
       backgroundColor: const Color(0xFFF4F6FA),
@@ -261,36 +270,64 @@ class _AdminScreenState extends State<AdminScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Create New Mock Test Series',
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('Create Exam Test / PYQ / Sectional Series', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 16),
+            
+            // Category Dropdown
+            DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              decoration: const InputDecoration(labelText: 'Exam Category', border: OutlineInputBorder()),
+              items: _categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+              onChanged: (val) => setState(() => _selectedCategory = val ?? 'SSC CGL'),
+            ),
+            const SizedBox(height: 12),
+
+            // Test Type Dropdown
+            DropdownButtonFormField<String>(
+              value: _selectedTestType,
+              decoration: const InputDecoration(labelText: 'Test Type', border: OutlineInputBorder()),
+              items: _testTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+              onChanged: (val) => setState(() => _selectedTestType = val ?? 'Full Mock'),
+            ),
+            const SizedBox(height: 12),
+
             TextField(
               controller: _testTitleController,
               decoration: const InputDecoration(
-                labelText: 'Test Title (e.g. UP Police Constable Full Mock 01)',
+                labelText: 'Test Title (e.g. SSC CGL 2026 Tier 1 Full Mock 01)',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _testCategoryController,
-              decoration: const InputDecoration(
-                labelText: 'Category / Exam (e.g. UP Police, SSC CGL, RRB)',
-                border: OutlineInputBorder(),
+
+            if (_selectedTestType == 'PYQ') ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _pyqYearController,
+                      decoration: const InputDecoration(labelText: 'PYQ Year (e.g. 2025)', border: OutlineInputBorder()),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _pyqShiftController,
+                      decoration: const InputDecoration(labelText: 'Shift Tag (e.g. Shift 1)', border: OutlineInputBorder()),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
+            ],
+
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _durationMinutesController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Duration (Mins)',
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration: const InputDecoration(labelText: 'Duration (Mins)', border: OutlineInputBorder()),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -298,15 +335,13 @@ class _AdminScreenState extends State<AdminScreen> {
                   child: TextField(
                     controller: _totalMarksController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Total Marks',
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration: const InputDecoration(labelText: 'Total Marks', border: OutlineInputBorder()),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
+
             SwitchListTile(
               title: const Text('Is Free Demo Test?'),
               subtitle: const Text('Yes = Free for all, No = Requires Pass'),
@@ -315,16 +350,14 @@ class _AdminScreenState extends State<AdminScreen> {
               onChanged: (val) => setState(() => _isFreeTest = val),
             ),
             const SizedBox(height: 16),
+
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A237E),
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
                 onPressed: _createMockTestPackage,
-                child: const Text('CREATE TEST PACKAGE',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text('CREATE PACKAGE & NEXT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -344,7 +377,7 @@ class _AdminScreenState extends State<AdminScreen> {
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('mock_tests').snapshots(),
+              stream: FirebaseFirestore.instance.collection('mock_tests').orderBy('createdAt', descending: true).snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const CircularProgressIndicator();
 
@@ -352,7 +385,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
                 return DropdownButtonFormField<String>(
                   value: _selectedTestId,
-                  hint: const Text('Select Mock Test Package'),
+                  hint: const Text('Select Target Test Package'),
                   items: docs.map((doc) {
                     final data = doc.data() as Map<String, dynamic>;
                     return DropdownMenuItem<String>(
@@ -363,7 +396,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   onChanged: (val) => setState(() => _selectedTestId = val),
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    labelText: 'Target Mock Test',
+                    labelText: 'Target Mock Test Package',
                   ),
                 );
               },
@@ -379,14 +412,13 @@ class _AdminScreenState extends State<AdminScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Paste Questions JSON Array',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                Text('Paste JSON Questions & Solutions Array', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _jsonInputController,
                   maxLines: 12,
                   decoration: const InputDecoration(
-                    hintText: 'Paste JSON Code [...] Here...',
+                    hintText: 'Paste JSON [...] Array Here...',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -395,12 +427,9 @@ class _AdminScreenState extends State<AdminScreen> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade700,
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
                     onPressed: _uploadQuestionsJson,
-                    child: const Text('UPLOAD ALL QUESTIONS VIA JSON',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text('UPLOAD ALL QUESTIONS & SOLUTIONS VIA JSON', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -421,9 +450,7 @@ class _AdminScreenState extends State<AdminScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Upload PDF Study Material',
-                style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('Publish PDF Notes & Formula Sheets', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 16),
             TextField(
               controller: _pdfTitleController,
@@ -436,7 +463,7 @@ class _AdminScreenState extends State<AdminScreen> {
             TextField(
               controller: _pdfCategoryController,
               decoration: const InputDecoration(
-                labelText: 'Category (e.g. UP Police, GK, Maths)',
+                labelText: 'Category (e.g. SSC CGL, Maths Notes, GK)',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -444,7 +471,7 @@ class _AdminScreenState extends State<AdminScreen> {
             TextField(
               controller: _pdfSizeController,
               decoration: const InputDecoration(
-                labelText: 'File Size (e.g. 2.5 MB)',
+                labelText: 'File Size (e.g. 3.2 MB)',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -452,7 +479,7 @@ class _AdminScreenState extends State<AdminScreen> {
             TextField(
               controller: _pdfUrlController,
               decoration: const InputDecoration(
-                labelText: 'Google Drive / Storage Public PDF Link',
+                labelText: 'Google Drive / Storage Public Link',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -461,12 +488,9 @@ class _AdminScreenState extends State<AdminScreen> {
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A237E),
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
                 onPressed: _uploadPdfNotes,
-                child: const Text('PUBLISH PDF NOTES',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text('PUBLISH PDF NOTES', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
