@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'analysis_screen.dart';
 
 class QuizEngineScreen extends StatefulWidget {
   final String testId;
@@ -21,7 +22,7 @@ class QuizEngineScreen extends StatefulWidget {
 class _QuizEngineScreenState extends State<QuizEngineScreen> {
   int currentQuestionIndex = 0;
   Timer? _timer;
-  int _secondsRemaining = 600;
+  int _secondsRemaining = 3600; // 60 mins default
 
   List<Map<String, dynamic>> questions = [];
   bool _isLoadingQuestions = true;
@@ -105,7 +106,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // 1. Save User Attempt History
+      // 1. Save Attempt
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -114,7 +115,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           .set({
         'testId': widget.testId,
         'testTitle': widget.testTitle,
-        'score': '${totalScore.toStringAsFixed(0)} / ${questions.length * 2}',
+        'score': '${totalScore.toStringAsFixed(1)} / ${questions.length * 2}',
         'correctCount': correctCount,
         'wrongCount': wrongCount,
         'status': 'Completed',
@@ -136,71 +137,22 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     }
 
     if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Column(
-            children: [
-              const Icon(Icons.stars_rounded, size: 48, color: Colors.amber),
-              const SizedBox(height: 8),
-              Text('Test Submitted! 🎉',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-            ],
+      // Direct Redirect to Detailed Analysis Screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AnalysisScreen(
+            testId: widget.testId,
+            testTitle: widget.testTitle,
+            score: totalScore,
+            totalQuestions: questions.length,
+            correctCount: correctCount,
+            wrongCount: wrongCount,
+            unattemptedCount: unattemptedCount,
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Your Score: ${totalScore.toStringAsFixed(0)} / ${questions.length * 2}',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A237E),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildScoreMetric('Correct', '$correctCount', Colors.green),
-                  _buildScoreMetric('Wrong', '$wrongCount', Colors.red),
-                  _buildScoreMetric('Skipped', '$unattemptedCount', Colors.grey),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A237E),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: const Text('BACK TO DASHBOARD',
-                  style: TextStyle(color: Colors.white)),
-            ),
-          ],
         ),
       );
     }
-  }
-
-  Widget _buildScoreMetric(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(value,
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-      ],
-    );
   }
 
   @override
@@ -238,7 +190,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         title: Text(
           widget.testTitle,
           style: GoogleFonts.poppins(
-              fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+              fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
           Container(
@@ -304,7 +256,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                 child: Text(
                   currentQuestion['question'],
                   style: GoogleFonts.poppins(
-                      fontSize: 16, fontWeight: FontWeight.w600),
+                      fontSize: 15, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
