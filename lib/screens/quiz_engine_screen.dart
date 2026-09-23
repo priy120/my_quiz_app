@@ -14,8 +14,8 @@ class QuizEngineScreen extends StatefulWidget {
 
   const QuizEngineScreen({
     super.key,
-    this.testId = 'default_test',
-    this.testTitle = 'CompeteMe Live Mock Test',
+    required this.testId,
+    required this.testTitle,
     this.isReattempt = false,
   });
 
@@ -33,7 +33,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late List<int?> selectedAnswers;
   late List<QuestionStatus> questionStatuses;
 
-  String _currentLang = 'HI';
+  String _currentLang = 'HI'; // Default Hindi, toggles to 'EN'
 
   @override
   void initState() {
@@ -108,6 +108,16 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     int minutes = totalSeconds ~/ 60;
     int seconds = totalSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  // Parse bilingual text based on current language selection
+  String _getParsedText(String rawText) {
+    if (!rawText.contains('\n\n')) return rawText;
+    final parts = rawText.split('\n\n');
+    if (parts.length >= 2) {
+      return _currentLang == 'HI' ? parts[1].trim() : parts[0].trim();
+    }
+    return rawText;
   }
 
   Future<void> _pauseAndExitTest() async {
@@ -221,13 +231,9 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // User Info Header
               Row(
                 children: [
-                  const CircleAvatar(
-                    backgroundColor: Color(0xFF1A237E),
-                    child: Icon(Icons.person, color: Colors.white),
-                  ),
+                  const CircleAvatar(backgroundColor: Color(0xFF1A237E), child: Icon(Icons.person, color: Colors.white)),
                   const SizedBox(width: 10),
                   Text(user?.displayName ?? 'Priyanshu', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
                   const Spacer(),
@@ -235,7 +241,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                 ],
               ),
               const Divider(),
-              // Status Legend Row
               Wrap(
                 spacing: 10,
                 runSpacing: 6,
@@ -248,7 +253,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                 ],
               ),
               const Divider(height: 20),
-              // Question Number Grid
               Expanded(
                 child: GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -301,7 +305,10 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
-                  onPressed: _submitTest,
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _submitTest();
+                  },
                   child: const Text('Submit Test', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
@@ -366,7 +373,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     }
 
     if (mounted) {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
           builder: (context) => AnalysisScreen(
@@ -379,6 +386,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             unattemptedCount: unattemptedCount,
           ),
         ),
+        (route) => route.isFirst,
       );
     }
   }
@@ -403,13 +411,16 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     }
 
     final currentQ = questions[currentQuestionIndex];
-    final String qText = currentQ['questionText'] ?? currentQ['question'] ?? '';
-    final List options = List.from(currentQ['options'] ?? []);
+    final String rawQText = currentQ['questionText'] ?? currentQ['question'] ?? '';
+    final String displayQText = _getParsedText(rawQText);
 
-    return WillPopScope(
-      onWillPop: () async {
-        _showPauseDialog();
-        return false;
+    final List rawOptions = List.from(currentQ['options'] ?? []);
+    final List<String> displayOptions = rawOptions.map((opt) => _getParsedText(opt.toString())).toList();
+
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (!didPop) _showPauseDialog();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -421,12 +432,33 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           ),
           actions: [
             IconButton(icon: const Icon(Icons.pause_circle_outline, color: Colors.amber), onPressed: _showPauseDialog),
-            TextButton(
-              onPressed: () => setState(() => _currentLang = _currentLang == 'HI' ? 'EN' : 'HI'),
-              child: Text(_currentLang == 'HI' ? 'हिंदी' : 'ENGLISH', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 11)),
+            
+            // Dynamic Language Switcher Toggle
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _currentLang = _currentLang == 'HI' ? 'EN' : 'HI';
+                });
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.amber,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Center(
+                  child: Text(
+                    _currentLang == 'HI' ? 'हिंदी' : 'ENGLISH',
+                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11),
+                  ),
+                ),
+              ),
             ),
+            
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(10)),
               child: Text(_formatTime(_secondsRemaining), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 11)),
             ),
@@ -446,7 +478,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Chip(
-                          label: Text('PART-B (${currentQ['section'] ?? 'General'})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                          label: Text('${currentQ['section'] ?? 'General'}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
                           backgroundColor: const Color(0xFF1A237E),
                         ),
                         Text('No. ${currentQuestionIndex + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
@@ -457,12 +489,12 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       child: Padding(
                         padding: const EdgeInsets.all(14.0),
-                        child: Text(qText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
+                        child: Text(displayQText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
                       ),
                     ),
                     const SizedBox(height: 10),
                     Column(
-                      children: List.generate(options.length, (optIdx) {
+                      children: List.generate(displayOptions.length, (optIdx) {
                         final isSelected = selectedAnswers[currentQuestionIndex] == optIdx;
                         return Card(
                           elevation: isSelected ? 2 : 1,
@@ -474,7 +506,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             dense: true,
-                            title: Text(options[optIdx], style: const TextStyle(fontSize: 13)),
+                            title: Text(displayOptions[optIdx], style: const TextStyle(fontSize: 13)),
                             leading: Radio<int>(
                               value: optIdx,
                               groupValue: selectedAnswers[currentQuestionIndex],
@@ -490,8 +522,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                 ),
               ),
             ),
-            
-            // Exact Bottom Action Buttons Bar from Video
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300))),
