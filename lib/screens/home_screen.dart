@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'exam_categories_screen.dart';
 import 'pdfs_screen.dart';
 import 'profile_screen.dart';
+import 'my_tests_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Target Selection Banner
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -72,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('Explore Categories', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 12),
 
+            // Grid of Options
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -127,9 +130,12 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _currentIndex,
         selectedItemColor: const Color(0xFF1A237E),
         unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() => _currentIndex = index);
-          if (index == 2) {
+          if (index == 1) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const MyTestsScreen()));
+          } else if (index == 2) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const PdfScreen()));
           } else if (index == 3) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
