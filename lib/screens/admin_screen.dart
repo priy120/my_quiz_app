@@ -14,31 +14,49 @@ class _AdminScreenState extends State<AdminScreen> {
   int _selectedTab = 0;
   bool _isLoading = false;
 
-  // Category Manager Controller
+  // Category Controllers
   final TextEditingController _newCategoryController = TextEditingController();
 
   // Test Creation Controllers
   final TextEditingController _testTitleController = TextEditingController();
-  final TextEditingController _durationMinutesController = TextEditingController(text: '60');
+  final TextEditingController _durationController = TextEditingController(text: '60');
   final TextEditingController _totalMarksController = TextEditingController(text: '200');
-  final TextEditingController _pyqYearController = TextEditingController(text: '2025');
-  final TextEditingController _pyqShiftController = TextEditingController(text: 'Shift 1');
 
-  String? _selectedCategory;
-  String _selectedTestType = 'Full Mock'; // Full Mock, PYQ, Sectional
+  String? _selectedCategory = 'SSC';
+  String _selectedSubCategory = 'SSC CGL 2026 - Tier 1';
+  String _testType = 'Mocks Tests'; // Mocks Tests or Previous Years
   bool _isFreeTest = false;
 
-  final List<String> _testTypes = ['Full Mock', 'PYQ', 'Sectional'];
+  final List<String> _subCategories = [
+    'SSC CGL 2026 - Tier 1',
+    'SSC CPO 2026 - Tier 1',
+    'SSC CPO 2025 - Tier 2',
+    'SSC CHSL 2026 - Tier 1',
+    'SSC CGL 2026 - Tier 2',
+    'SSC GD Constable 2026',
+    'SSC MTS 2026',
+  ];
+
+  // Single Question Controllers
+  final TextEditingController _questionTextController = TextEditingController();
+  final TextEditingController _opt1Controller = TextEditingController();
+  final TextEditingController _opt2Controller = TextEditingController();
+  final TextEditingController _opt3Controller = TextEditingController();
+  final TextEditingController _opt4Controller = TextEditingController();
+  final TextEditingController _solutionController = TextEditingController();
+  int _correctOptIndex = 0;
+  String _selectedSection = 'PART-B (General Intelligence)';
+
+  final List<String> _sections = [
+    'PART-A (General Awareness)',
+    'PART-B (General Intelligence)',
+    'PART-C (Quantitative Aptitude)',
+    'PART-D (English Language)',
+  ];
 
   // JSON Upload Controllers
   final TextEditingController _jsonInputController = TextEditingController();
   String? _selectedTestId;
-
-  // PDF Upload Controllers
-  final TextEditingController _pdfTitleController = TextEditingController();
-  final TextEditingController _pdfCategoryController = TextEditingController();
-  final TextEditingController _pdfSizeController = TextEditingController();
-  final TextEditingController _pdfUrlController = TextEditingController();
 
   void _showSnackbar(String message, {bool isSuccess = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -49,7 +67,7 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  // Add Dynamic Category
+  // 1. Add Category
   Future<void> _addCategory() async {
     final catName = _newCategoryController.text.trim();
     if (catName.isEmpty) return;
@@ -60,13 +78,13 @@ class _AdminScreenState extends State<AdminScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
       _newCategoryController.clear();
-      _showSnackbar('Category "$catName" Added!', isSuccess: true);
+      _showSnackbar('Category "$catName" Added Successfully!', isSuccess: true);
     } catch (e) {
       _showSnackbar('Error adding category: $e');
     }
   }
 
-  // Create Mock Test
+  // 2. Create Test Package
   Future<void> _createMockTestPackage() async {
     if (_testTitleController.text.trim().isEmpty || _selectedCategory == null) {
       _showSnackbar('Please enter Title & Select Category');
@@ -79,20 +97,19 @@ class _AdminScreenState extends State<AdminScreen> {
       DocumentReference docRef = await FirebaseFirestore.instance.collection('mock_tests').add({
         'title': _testTitleController.text.trim(),
         'category': _selectedCategory,
-        'testType': _selectedTestType,
-        'durationMinutes': int.tryParse(_durationMinutesController.text.trim()) ?? 60,
+        'subCategory': _selectedSubCategory,
+        'testType': _testType,
+        'durationMinutes': int.tryParse(_durationController.text.trim()) ?? 60,
         'totalMarks': int.tryParse(_totalMarksController.text.trim()) ?? 200,
         'isFree': _isFreeTest,
-        'pyqYear': _selectedTestType == 'PYQ' ? _pyqYearController.text.trim() : '',
-        'pyqShift': _selectedTestType == 'PYQ' ? _pyqShiftController.text.trim() : '',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      _showSnackbar('Test Package Created!', isSuccess: true);
+      _showSnackbar('Test Package Created Successfully!', isSuccess: true);
 
       setState(() {
         _selectedTestId = docRef.id;
-        _selectedTab = 2; // Jump to JSON upload
+        _selectedTab = 2; // Jump to Question Add tab
       });
 
       _testTitleController.clear();
@@ -104,7 +121,67 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // Upload JSON Questions
+  // 3. Add Single Question
+  Future<void> _addSingleQuestionManually() async {
+    if (_selectedTestId == null) {
+      _showSnackbar('Select Target Test First');
+      return;
+    }
+
+    if (_questionTextController.text.trim().isEmpty ||
+        _opt1Controller.text.trim().isEmpty ||
+        _opt2Controller.text.trim().isEmpty) {
+      _showSnackbar('Enter Question Text & At least 2 Options');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final qSnapshot = await FirebaseFirestore.instance
+          .collection('mock_tests')
+          .doc(_selectedTestId)
+          .collection('questions')
+          .get();
+
+      int nextQNo = qSnapshot.docs.length + 1;
+
+      await FirebaseFirestore.instance
+          .collection('mock_tests')
+          .doc(_selectedTestId)
+          .collection('questions')
+          .add({
+        'questionNo': nextQNo,
+        'section': _selectedSection,
+        'questionText': _questionTextController.text.trim(),
+        'options': [
+          _opt1Controller.text.trim(),
+          _opt2Controller.text.trim(),
+          _opt3Controller.text.trim(),
+          _opt4Controller.text.trim(),
+        ],
+        'correctIndex': _correctOptIndex,
+        'solutionText': _solutionController.text.trim().isEmpty
+            ? 'Detailed explanation coming soon.'
+            : _solutionController.text.trim(),
+      });
+
+      _showSnackbar('Question #$nextQNo Added Successfully!', isSuccess: true);
+
+      _questionTextController.clear();
+      _opt1Controller.clear();
+      _opt2Controller.clear();
+      _opt3Controller.clear();
+      _opt4Controller.clear();
+      _solutionController.clear();
+    } catch (e) {
+      _showSnackbar('Error adding question: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // 4. Batch JSON Upload
   Future<void> _uploadQuestionsJson() async {
     if (_selectedTestId == null || _jsonInputController.text.trim().isEmpty) {
       _showSnackbar('Select Test & Paste JSON');
@@ -126,13 +203,11 @@ class _AdminScreenState extends State<AdminScreen> {
 
         batch.set(docRef, {
           'questionNo': q['questionNo'] ?? 1,
-          'section': q['section'] ?? 'General',
+          'section': q['section'] ?? 'PART-B (General Intelligence)',
           'questionText': q['questionText'] ?? '',
-          'imageUrl': q['imageUrl'] ?? '',
           'options': q['options'] ?? [],
           'correctIndex': q['correctIndex'] ?? 0,
-          'solutionText': q['solutionText'] ?? 'Explanation coming soon.',
-          'solutionImageUrl': q['solutionImageUrl'] ?? '',
+          'solutionText': q['solutionText'] ?? 'Detailed explanation coming soon.',
         });
       }
 
@@ -151,19 +226,23 @@ class _AdminScreenState extends State<AdminScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A237E),
-        title: Text('Admin Control Panel', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16)),
+        title: Text('Admin Control Panel', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
       ),
       backgroundColor: const Color(0xFFF4F6FA),
       body: Column(
         children: [
           Container(
             color: Colors.white,
-            child: Row(
-              children: [
-                _buildTabBtn('0. Categories', 0),
-                _buildTabBtn('1. Create Test', 1),
-                _buildTabBtn('2. JSON Questions', 2),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildTabBtn('0. Categories', 0),
+                  _buildTabBtn('1. Create Test', 1),
+                  _buildTabBtn('2. Single Question', 2),
+                  _buildTabBtn('3. JSON Batch', 3),
+                ],
+              ),
             ),
           ),
           Expanded(
@@ -181,18 +260,19 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Widget _buildTabBtn(String label, int index) {
     final isSel = _selectedTab == index;
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _selectedTab = index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: isSel ? const Color(0xFF1A237E) : Colors.transparent, width: 3)),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, fontWeight: isSel ? FontWeight.bold : FontWeight.normal, color: isSel ? const Color(0xFF1A237E) : Colors.grey),
+    return InkWell(
+      onTap: () => setState(() => _selectedTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: isSel ? const Color(0xFF1A237E) : Colors.transparent, width: 3)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+            color: isSel ? const Color(0xFF1A237E) : Colors.grey,
           ),
         ),
       ),
@@ -202,22 +282,23 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget _buildTabContent() {
     if (_selectedTab == 0) {
       return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Add New Exam Category', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+              Text('Add New Exam Category', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
               const SizedBox(height: 10),
               TextField(
                 controller: _newCategoryController,
-                decoration: const InputDecoration(labelText: 'Category Name (e.g. SSC, Railways, UP Police)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Category Name (e.g. SSC, Railways, Banking)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
                 onPressed: _addCategory,
-                child: const Text('ADD CATEGORY', style: TextStyle(color: Colors.white)),
+                child: const Text('ADD CATEGORY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
               const Divider(height: 30),
               Text('Existing Categories:', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
@@ -240,12 +321,13 @@ class _AdminScreenState extends State<AdminScreen> {
       );
     } else if (_selectedTab == 1) {
       return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Create New Mock Test Package', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+              Text('Create New Mock Test Package', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
               const SizedBox(height: 12),
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('exam_categories').snapshots(),
@@ -254,24 +336,45 @@ class _AdminScreenState extends State<AdminScreen> {
                   final docs = snapshot.data!.docs;
                   return DropdownButtonFormField<String>(
                     value: _selectedCategory,
-                    hint: const Text('Select Exam Category'),
+                    hint: const Text('Select Main Category'),
                     items: docs.map((d) => DropdownMenuItem(value: d.id, child: Text(d.id))).toList(),
                     onChanged: (val) => setState(() => _selectedCategory = val),
-                    decoration: const InputDecoration(border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Main Exam Category', border: OutlineInputBorder()),
                   );
                 },
               ),
               const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: _selectedSubCategory,
+                items: _subCategories.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedSubCategory = val);
+                },
+                decoration: const InputDecoration(labelText: 'Sub-Exam Package Tier', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: _testType,
+                items: const [
+                  DropdownMenuItem(value: 'Mocks Tests', child: Text('Mocks Tests')),
+                  DropdownMenuItem(value: 'Previous Years', child: Text('Previous Years (PYQ)')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setState(() => _testType = val);
+                },
+                decoration: const InputDecoration(labelText: 'Test Type', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
               TextField(
                 controller: _testTitleController,
-                decoration: const InputDecoration(labelText: 'Test Title', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Test Title (e.g. SSC CGL Tier I 2026 - Free Mock Test)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: _durationMinutesController,
+                      controller: _durationController,
                       decoration: const InputDecoration(labelText: 'Duration (Mins)', border: OutlineInputBorder()),
                     ),
                   ),
@@ -294,7 +397,69 @@ class _AdminScreenState extends State<AdminScreen> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
                 onPressed: _createMockTestPackage,
-                child: const Text('CREATE TEST PACKAGE', style: TextStyle(color: Colors.white)),
+                child: const Text('CREATE TEST PACKAGE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (_selectedTab == 2) {
+      return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Manual Question Form', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 12),
+              _buildTestSelectorDropdown(),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedSection,
+                items: _sections.map((sec) => DropdownMenuItem(value: sec, child: Text(sec))).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedSection = val);
+                },
+                decoration: const InputDecoration(labelText: 'Subject / Section', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _questionTextController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Question Text', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
+              TextField(controller: _opt1Controller, decoration: const InputDecoration(labelText: 'Option 1', border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: _opt2Controller, decoration: const InputDecoration(labelText: 'Option 2', border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: _opt3Controller, decoration: const InputDecoration(labelText: 'Option 3', border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: _opt4Controller, decoration: const InputDecoration(labelText: 'Option 4', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                value: _correctOptIndex,
+                decoration: const InputDecoration(labelText: 'Correct Option', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('Option 1 is Correct')),
+                  DropdownMenuItem(value: 1, child: Text('Option 2 is Correct')),
+                  DropdownMenuItem(value: 2, child: Text('Option 3 is Correct')),
+                  DropdownMenuItem(value: 3, child: Text('Option 4 is Correct')),
+                ],
+                onChanged: (val) => setState(() => _correctOptIndex = val ?? 0),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _solutionController,
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Detailed Explanation / Solution', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
+                onPressed: _addSingleQuestionManually,
+                child: const Text('ADD QUESTION TO TEST', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -302,43 +467,54 @@ class _AdminScreenState extends State<AdminScreen> {
       );
     } else {
       return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('mock_tests').snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const CircularProgressIndicator();
-                  final docs = snapshot.data!.docs;
-                  return DropdownButtonFormField<String>(
-                    value: _selectedTestId,
-                    hint: const Text('Select Target Test'),
-                    items: docs.map((d) {
-                      final data = d.data() as Map<String, dynamic>;
-                      return DropdownMenuItem(value: d.id, child: Text('${data['title']} (${data['category']})'));
-                    }).toList(),
-                    onChanged: (val) => setState(() => _selectedTestId = val),
-                    decoration: const InputDecoration(border: OutlineInputBorder()),
-                  );
-                },
-              ),
+              _buildTestSelectorDropdown(),
               const SizedBox(height: 12),
               TextField(
                 controller: _jsonInputController,
                 maxLines: 10,
-                decoration: const InputDecoration(hintText: 'Paste JSON Questions Array Here...', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  hintText: 'Paste Questions JSON Array Here...\n[\n  {\n    "questionNo": 1,\n    "section": "PART-B (General Intelligence)",\n    "questionText": "Question here...",\n    "options": ["A", "B", "C", "D"],\n    "correctIndex": 0,\n    "solutionText": "Explanation here..."\n  }\n]',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 12),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
                 onPressed: _uploadQuestionsJson,
-                child: const Text('UPLOAD QUESTIONS VIA JSON', style: TextStyle(color: Colors.white)),
+                child: const Text('UPLOAD QUESTIONS VIA JSON', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
         ),
       );
     }
+  }
+
+  Widget _buildTestSelectorDropdown() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('mock_tests').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const CircularProgressIndicator();
+        final docs = snapshot.data!.docs;
+        return DropdownButtonFormField<String>(
+          value: _selectedTestId,
+          hint: const Text('Select Target Test Package'),
+          items: docs.map((d) {
+            final data = d.data() as Map<String, dynamic>;
+            return DropdownMenuItem(
+              value: d.id,
+              child: Text('${data['title']} (${data['subCategory'] ?? data['category']})'),
+            );
+          }).toList(),
+          onChanged: (val) => setState(() => _selectedTestId = val),
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        );
+      },
+    );
   }
 }
