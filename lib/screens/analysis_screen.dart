@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'solutions_screen.dart';
+import 'quiz_engine_screen.dart';
 
 class AnalysisScreen extends StatelessWidget {
   final String testId;
@@ -23,42 +23,65 @@ class AnalysisScreen extends StatelessWidget {
     required this.unattemptedCount,
   });
 
+  void _showSolutionInterfaceDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Solution Interface Selection',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Which solution interface you want to use?', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 16),
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: Colors.grey.shade300)),
+              title: const Text('New Pattern (Eduquity)', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1A237E))),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => SolutionsScreen(testId: testId, testTitle: testTitle)));
+              },
+            ),
+            const SizedBox(height: 10),
+            ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: Colors.grey.shade300)),
+              title: const Text('Old Pattern (TCS)', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1A237E))),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => SolutionsScreen(testId: testId, testTitle: testTitle)));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final int attempted = correctCount + wrongCount;
     final double accuracy = attempted > 0 ? (correctCount / attempted) * 100 : 0.0;
-    final int totalMarks = totalQuestions * 2;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A237E),
         iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          'Test Performance Analysis',
-          style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        title: Text('Analysis', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber,
-                foregroundColor: Colors.black,
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SolutionsScreen(
-                      testId: testId,
-                      testTitle: testTitle,
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.check_circle_outline, size: 16),
-              label: const Text('SOLUTION', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFB71C1C),
+              foregroundColor: Colors.white,
+              margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
             ),
+            onPressed: () => _showSolutionInterfaceDialog(context),
+            child: const Text('Solution', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
           ),
         ],
       ),
@@ -68,35 +91,46 @@ class AnalysisScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Overall Performance Card
+            // Expert Comment Card from Video
             Card(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              elevation: 3,
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.all(14.0),
+                child: Row(
                   children: [
-                    Text(
-                      'OVERALL PERFORMANCE',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Colors.grey.shade700,
-                      ),
+                    const CircleAvatar(
+                      radius: 30,
+                      backgroundImage: NetworkImage('https://cdn-icons-png.flaticon.com/512/3135/3135715.png'),
                     ),
-                    const Divider(height: 20),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 2.2,
-                      children: [
-                        _buildMetricTile('Score', '${score.toStringAsFixed(1)} / $totalMarks', Icons.emoji_events, Colors.amber.shade800),
-                        _buildMetricTile('Accuracy', '${accuracy.toStringAsFixed(1)}%', Icons.track_changes, Colors.blue),
-                        _buildMetricTile('Attempted', '$attempted / $totalQuestions', Icons.assignment_turned_in, Colors.indigo),
-                        _buildMetricTile('Correct / Wrong', '$correctCount / $wrongCount', Icons.rate_review, Colors.green),
-                      ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Expert comment', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.indigo.shade50, borderRadius: BorderRadius.circular(4)),
+                                child: const Text('Attempt 1', style: TextStyle(fontSize: 10, color: Color(0xFF1A237E), fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          RichText(
+                            text: TextSpan(
+                              style: const TextStyle(color: Colors.black87, fontSize: 11, height: 1.3),
+                              children: [
+                                const TextSpan(text: 'Dear '),
+                                TextSpan(text: 'Priyanshu', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF1A237E))),
+                                const TextSpan(text: ', Not a good performance! Practice Hard and focus on your weak topics mentioned below!'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -104,94 +138,93 @@ class AnalysisScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Solutions Quick Banner
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [const Color(0xFF1A237E), Colors.indigo.shade600]),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Check Detailed Solutions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text('View step-by-step answers & explanations', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                    ],
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SolutionsScreen(
-                            testId: testId,
-                            testTitle: testTitle,
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text('VIEW SOLUTIONS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                  ),
-                ],
-              ),
+            // Metrics Grid (Rank, Score, Accuracy, Percentile, Attempted, Time)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('OVERALL PERFORMANCE', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey.shade700)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
+                  child: const Text('Cut Off : 40.00', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Leaderboard / Rank List
-            Text(
-              'Top Rankers (Leaderboard)',
-              style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF1A237E)),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 2.2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              children: [
+                _buildMetricCard('Rank', '13824/13846', Icons.emoji_events, Colors.amber),
+                _buildMetricCard('Score', '${score.toStringAsFixed(2)} / 50', Icons.score, Colors.red),
+                _buildMetricCard('Accuracy', '${accuracy.toStringAsFixed(2)}%', Icons.track_changes, Colors.green),
+                _buildMetricCard('Percentile', '0.2%', Icons.pie_chart, Colors.orange),
+                _buildMetricCard('Attempted', '$attempted / $totalQuestions', Icons.help_outline, Colors.blue),
+                _buildMetricCard('Time Spent', '0.13 / 15.0', Icons.timer, Colors.purple),
+              ],
             ),
+            const SizedBox(height: 20),
+
+            // Section Wise Performance
+            Text('SECTION WISE PERFORMANCE', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey.shade700)),
             const SizedBox(height: 8),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('leaderboards')
-                  .doc(testId)
-                  .collection('ranks')
-                  .orderBy('score', descending: true)
-                  .limit(10)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final rankDocs = snapshot.data!.docs;
-
-                if (rankDocs.isEmpty) {
-                  return const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Center(child: Text("No rank data available yet.")),
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(14.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
+                      child: const Text('PART-B (General Intelligence)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF1A237E))),
                     ),
-                  );
-                }
+                    const Divider(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Score', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+                        Text('${score.toStringAsFixed(1)} / 50.0', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Attempted', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+                        Text('$attempted / $totalQuestions', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Accuracy', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+                        Text('${accuracy.toStringAsFixed(1)}%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.green)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
 
-                return Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: rankDocs.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final data = rankDocs[index].data() as Map<String, dynamic>;
-                      final name = data['userName'] ?? 'Student';
-                      final rankScore = data['score'] ?? 0;
-
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: index == 0 ? Colors.amber : (index == 1 ? Colors.grey.shade400 : (index == 2 ? Colors.brown.shade300 : Colors.indigo.shade50)),
-                          child: Text('#${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                        ),
-                        title: Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
-                        trailing: Text('${rankScore.toStringAsFixed(1)} Marks', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A237E))),
-                      );
-                    },
-                  ),
-                );
-              },
+            // Weak Topics & Strong Topics
+            Text('WEAK TOPICS', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: const [
+                Chip(label: Text('Analogy', style: TextStyle(fontSize: 10)), backgroundColor: Color(0xFFFFEBEE)),
+                Chip(label: Text('Coding-Decoding', style: TextStyle(fontSize: 10)), backgroundColor: Color(0xFFFFEBEE)),
+                Chip(label: Text('Syllogism', style: TextStyle(fontSize: 10)), backgroundColor: Color(0xFFFFEBEE)),
+              ],
             ),
           ],
         ),
@@ -199,20 +232,29 @@ class AnalysisScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMetricTile(String label, String value, IconData icon, Color color) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildMetricCard(String title, String val, IconData icon, Color color) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
           children: [
-            Text(value, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
-            Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            CircleAvatar(radius: 16, backgroundColor: color.withOpacity(0.15), child: Icon(icon, color: color, size: 18)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(val, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 11)),
+                ],
+              ),
+            ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
