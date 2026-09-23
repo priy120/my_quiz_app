@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'solutions_screen.dart';
-import 'quiz_engine_screen.dart';
 
 class AnalysisScreen extends StatelessWidget {
   final String testId;
@@ -22,6 +21,19 @@ class AnalysisScreen extends StatelessWidget {
     required this.wrongCount,
     required this.unattemptedCount,
   });
+
+  void _handleSolutionClick(BuildContext context) {
+    if (testTitle.toUpperCase().contains('SSC')) {
+      _showSolutionInterfaceDialog(context);
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SolutionsScreen(testId: testId, testTitle: testTitle),
+        ),
+      );
+    }
+  }
 
   void _showSolutionInterfaceDialog(BuildContext context) {
     showDialog(
@@ -81,7 +93,7 @@ class AnalysisScreen extends StatelessWidget {
                 backgroundColor: const Color(0xFFB71C1C),
                 foregroundColor: Colors.white,
               ),
-              onPressed: () => _showSolutionInterfaceDialog(context),
+              onPressed: () => _handleSolutionClick(context),
               child: const Text('Solution', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             ),
           ),
@@ -93,7 +105,6 @@ class AnalysisScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Expert Comment Card from Video
             Card(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: Padding(
@@ -127,7 +138,7 @@ class AnalysisScreen extends StatelessWidget {
                               children: [
                                 const TextSpan(text: 'Dear '),
                                 TextSpan(text: 'Priyanshu', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF1A237E))),
-                                const TextSpan(text: ', Not a good performance! Practice Hard and focus on your weak topics mentioned below!'),
+                                const TextSpan(text: ', Practice Hard and focus on your weak topics mentioned below!'),
                               ],
                             ),
                           ),
@@ -139,8 +150,6 @@ class AnalysisScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Metrics Grid (Rank, Score, Accuracy, Percentile, Attempted, Time)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -153,7 +162,6 @@ class AnalysisScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -162,17 +170,15 @@ class AnalysisScreen extends StatelessWidget {
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
               children: [
-                _buildMetricCard('Rank', '13824/13846', Icons.emoji_events, Colors.amber),
-                _buildMetricCard('Score', '${score.toStringAsFixed(2)} / 50', Icons.score, Colors.red),
+                _buildMetricCard('Rank', '1/1', Icons.emoji_events, Colors.amber),
+                _buildMetricCard('Score', '${score.toStringAsFixed(2)} / ${totalQuestions * 2}', Icons.score, Colors.red),
                 _buildMetricCard('Accuracy', '${accuracy.toStringAsFixed(2)}%', Icons.track_changes, Colors.green),
-                _buildMetricCard('Percentile', '0.2%', Icons.pie_chart, Colors.orange),
+                _buildMetricCard('Percentile', '100%', Icons.pie_chart, Colors.orange),
                 _buildMetricCard('Attempted', '$attempted / $totalQuestions', Icons.help_outline, Colors.blue),
-                _buildMetricCard('Time Spent', '0.13 / 15.0', Icons.timer, Colors.purple),
+                _buildMetricCard('Time Spent', '0.13 / 60.0', Icons.timer, Colors.purple),
               ],
             ),
             const SizedBox(height: 20),
-
-            // Section Wise Performance
             Text('SECTION WISE PERFORMANCE', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey.shade700)),
             const SizedBox(height: 8),
             Card(
@@ -185,14 +191,14 @@ class AnalysisScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
-                      child: const Text('PART-B (General Intelligence)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF1A237E))),
+                      child: const Text('Overall Test Performance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF1A237E))),
                     ),
                     const Divider(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Score', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-                        Text('${score.toStringAsFixed(1)} / 50.0', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text('${score.toStringAsFixed(1)} / ${(totalQuestions * 2).toDouble()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -214,19 +220,6 @@ class AnalysisScreen extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // Weak Topics & Strong Topics
-            Text('WEAK TOPICS', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: const [
-                Chip(label: Text('Analogy', style: TextStyle(fontSize: 10)), backgroundColor: Color(0xFFFFEBEE)),
-                Chip(label: Text('Coding-Decoding', style: TextStyle(fontSize: 10)), backgroundColor: Color(0xFFFFEBEE)),
-                Chip(label: Text('Syllogism', style: TextStyle(fontSize: 10)), backgroundColor: Color(0xFFFFEBEE)),
-              ],
             ),
           ],
         ),
