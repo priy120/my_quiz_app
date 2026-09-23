@@ -22,9 +22,10 @@ class _AdminScreenState extends State<AdminScreen> {
 
   String? _selectedCategory = 'SSC';
   String _tabType = 'Mocks Tests';
+  String _sectionType = 'Full Tests';
   bool _isFreeTest = false;
 
-  // Single Question Entry
+  // Question Form
   final TextEditingController _questionTextController = TextEditingController();
   final TextEditingController _opt1Controller = TextEditingController();
   final TextEditingController _opt2Controller = TextEditingController();
@@ -59,7 +60,7 @@ class _AdminScreenState extends State<AdminScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
       _newCategoryController.clear();
-      _showSnackbar('Category "$catName" Added Successfully!', isSuccess: true);
+      _showSnackbar('Category "$catName" Added!', isSuccess: true);
     } catch (e) {
       _showSnackbar('Error: $e');
     }
@@ -67,7 +68,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _createTestPackage() async {
     if (_testTitleController.text.trim().isEmpty || _selectedCategory == null || _subCategoryController.text.trim().isEmpty) {
-      _showSnackbar('Fill all details (Title, Category, Sub-Category)');
+      _showSnackbar('Fill Category, Sub-Category & Title');
       return;
     }
 
@@ -79,13 +80,14 @@ class _AdminScreenState extends State<AdminScreen> {
         'category': _selectedCategory!.toUpperCase(),
         'subCategory': _subCategoryController.text.trim(),
         'tabType': _tabType,
+        'sectionType': _sectionType,
         'durationMinutes': int.tryParse(_durationController.text.trim()) ?? 60,
         'totalMarks': int.tryParse(_totalMarksController.text.trim()) ?? 200,
         'isFree': _isFreeTest,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      _showSnackbar('Test Package Created!', isSuccess: true);
+      _showSnackbar('Test Package Created Successfully!', isSuccess: true);
 
       setState(() {
         _selectedTestId = docRef.id;
@@ -254,7 +256,7 @@ class _AdminScreenState extends State<AdminScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Add Main Exam Category', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+              Text('Add Main Category', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               TextField(
                 controller: _newCategoryController,
@@ -277,7 +279,7 @@ class _AdminScreenState extends State<AdminScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Create Test Package', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+              Text('Create Exam Test Package', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('exam_categories').snapshots(),
@@ -288,31 +290,51 @@ class _AdminScreenState extends State<AdminScreen> {
                     value: _selectedCategory,
                     items: docs.map((d) => DropdownMenuItem(value: d.id, child: Text(d.id))).toList(),
                     onChanged: (val) => setState(() => _selectedCategory = val),
-                    decoration: const InputDecoration(labelText: 'Main Category', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: '1. Main Category', border: OutlineInputBorder()),
                   );
                 },
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _subCategoryController,
-                decoration: const InputDecoration(labelText: 'Sub Category / Exam Tier (e.g. SSC CGL 2026 - Tier 1)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: '2. Sub Category Package (e.g. SSC CGL 2026 - Tier 1)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                value: _tabType,
-                items: const [
-                  DropdownMenuItem(value: 'Mocks Tests', child: Text('Mocks Tests')),
-                  DropdownMenuItem(value: 'Previous Years', child: Text('Previous Years')),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _tabType,
+                      items: const [
+                        DropdownMenuItem(value: 'Mocks Tests', child: Text('Mocks Tests')),
+                        DropdownMenuItem(value: 'Previous Years', child: Text('Previous Years')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => _tabType = val);
+                      },
+                      decoration: const InputDecoration(labelText: '3. Main Tab', border: OutlineInputBorder()),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _sectionType,
+                      items: const [
+                        DropdownMenuItem(value: 'Full Tests', child: Text('Full Tests')),
+                        DropdownMenuItem(value: 'Sectional Tests', child: Text('Sectional Tests')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => _sectionType = val);
+                      },
+                      decoration: const InputDecoration(labelText: '4. Section Filter', border: OutlineInputBorder()),
+                    ),
+                  ),
                 ],
-                onChanged: (val) {
-                  if (val != null) setState(() => _tabType = val);
-                },
-                decoration: const InputDecoration(labelText: 'Main Tab Type', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _testTitleController,
-                decoration: const InputDecoration(labelText: 'Test Title (e.g. Full Mock Test 1)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Test Title (e.g. SSC CGL Tier I 2026 - Full Mock 1)', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
               Row(
