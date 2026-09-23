@@ -14,8 +14,8 @@ class QuizEngineScreen extends StatefulWidget {
 
   const QuizEngineScreen({
     super.key,
-    required this.testId,
-    required this.testTitle,
+    this.testId = 'default_test',
+    this.testTitle = 'CompeteMe Live Mock Test',
     this.isReattempt = false,
   });
 
@@ -297,7 +297,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // 1. Save Full Attempt Response in Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -314,7 +313,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         'attemptedAt': FieldValue.serverTimestamp(),
       });
 
-      // 2. Clear Paused Saved State
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -322,7 +320,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           .doc(widget.testId)
           .delete();
 
-      // 3. Save Leaderboard Entry
       await FirebaseFirestore.instance
           .collection('leaderboards')
           .doc(widget.testId)
