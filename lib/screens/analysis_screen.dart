@@ -74,14 +74,16 @@ class AnalysisScreen extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text('Analysis', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFB71C1C),
-              foregroundColor: Colors.white,
-              margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFB71C1C),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => _showSolutionInterfaceDialog(context),
+              child: const Text('Solution', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             ),
-            onPressed: () => _showSolutionInterfaceDialog(context),
-            child: const Text('Solution', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
           ),
         ],
       ),
