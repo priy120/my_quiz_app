@@ -40,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Target Selection Banner
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -73,7 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('Explore Categories', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 12),
 
-            // Grid of Options
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -109,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const PdfsScreen()),
+                      MaterialPageRoute(builder: (context) => const PdfScreen()),
                     );
                   },
                 ),
@@ -132,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) {
           setState(() => _currentIndex = index);
           if (index == 2) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const PdfsScreen()));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const PdfScreen()));
           } else if (index == 3) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
           }
