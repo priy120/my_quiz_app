@@ -92,26 +92,28 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
           style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
         ),
         actions: [
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.black,
-              margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-            ),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => QuizEngineScreen(
-                    testId: widget.testId,
-                    testTitle: widget.testTitle,
-                    isReattempt: true,
+          Padding(
+            padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => QuizEngineScreen(
+                      testId: widget.testId,
+                      testTitle: widget.testTitle,
+                      isReattempt: true,
+                    ),
                   ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('RE-ATTEMPT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                );
+              },
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('RE-ATTEMPT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+            ),
           ),
         ],
       ),
@@ -145,7 +147,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                     ),
                     Expanded(
                       child: filteredQuestions.isEmpty
-                          ? Center(child: Text("No $filter questions found."))
+                          ? Center(child: Text("No $_activeFilter questions found."))
                           : ListView.builder(
                               padding: const EdgeInsets.all(16.0),
                               itemCount: filteredQuestions.length,
