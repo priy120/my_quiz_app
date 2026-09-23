@@ -14,8 +14,8 @@ class QuizEngineScreen extends StatefulWidget {
 
   const QuizEngineScreen({
     super.key,
-    required this.testId,
-    required this.testTitle,
+    this.testId = 'default_test',
+    this.testTitle = 'CompeteMe Live Mock Test',
     this.isReattempt = false,
   });
 
@@ -33,7 +33,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late List<int?> selectedAnswers;
   late List<QuestionStatus> questionStatuses;
 
-  String _currentLang = 'HI'; // Default Hindi, toggles to 'EN'
+  String _currentLang = 'HI';
 
   @override
   void initState() {
@@ -110,7 +110,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  // Parse bilingual text based on current language selection
   String _getParsedText(String rawText) {
     if (!rawText.contains('\n\n')) return rawText;
     final parts = rawText.split('\n\n');
@@ -433,7 +432,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           actions: [
             IconButton(icon: const Icon(Icons.pause_circle_outline, color: Colors.amber), onPressed: _showPauseDialog),
             
-            // Dynamic Language Switcher Toggle
             InkWell(
               onTap: () {
                 setState(() {
