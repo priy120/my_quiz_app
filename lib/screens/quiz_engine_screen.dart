@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'analysis_screen.dart';
 
-enum QuestionStatus { notVisited, notAnswered, answered, markedForReview }
+enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
 class QuizEngineScreen extends StatefulWidget {
   final String testId;
@@ -57,7 +57,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
         final user = FirebaseAuth.instance.currentUser;
 
-        // Fetch Saved Paused State if not re-attemping
         if (user != null && !widget.isReattempt) {
           final savedDoc = await FirebaseFirestore.instance
               .collection('users')
@@ -111,7 +110,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  // PAUSE TEST & SAVE STATE TO FIRESTORE
   Future<void> _pauseAndExitTest() async {
     _timer?.cancel();
     final user = FirebaseAuth.instance.currentUser;
@@ -136,13 +134,10 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('PAUSE TEST'),
+        title: const Text('PAUSE TEST', style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to pause & close this test? Your progress will be saved.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('No'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
             onPressed: () {
@@ -171,49 +166,89 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   void _selectOption(int optIndex) {
     setState(() {
       selectedAnswers[currentQuestionIndex] = optIndex;
-      questionStatuses[currentQuestionIndex] = QuestionStatus.answered;
     });
   }
 
-  void _toggleMarkForReview() {
+  void _clearResponse() {
     setState(() {
-      if (questionStatuses[currentQuestionIndex] == QuestionStatus.markedForReview) {
-        questionStatuses[currentQuestionIndex] = selectedAnswers[currentQuestionIndex] != null
-            ? QuestionStatus.answered
-            : QuestionStatus.notAnswered;
+      selectedAnswers[currentQuestionIndex] = null;
+      questionStatuses[currentQuestionIndex] = QuestionStatus.notAnswered;
+    });
+  }
+
+  void _markForReviewAndNext() {
+    setState(() {
+      if (selectedAnswers[currentQuestionIndex] != null) {
+        questionStatuses[currentQuestionIndex] = QuestionStatus.markedAndAnswered;
       } else {
         questionStatuses[currentQuestionIndex] = QuestionStatus.markedForReview;
+      }
+      if (currentQuestionIndex < questions.length - 1) {
+        _onQuestionChanged(currentQuestionIndex + 1);
+      }
+    });
+  }
+
+  void _saveAndNext() {
+    setState(() {
+      if (selectedAnswers[currentQuestionIndex] != null) {
+        questionStatuses[currentQuestionIndex] = QuestionStatus.answered;
+      } else {
+        questionStatuses[currentQuestionIndex] = QuestionStatus.notAnswered;
+      }
+      if (currentQuestionIndex < questions.length - 1) {
+        _onQuestionChanged(currentQuestionIndex + 1);
       }
     });
   }
 
   void _openQuestionPalette() {
+    final user = FirebaseAuth.instance.currentUser;
+    int answeredCount = questionStatuses.where((s) => s == QuestionStatus.answered).length;
+    int markedCount = questionStatuses.where((s) => s == QuestionStatus.markedForReview).length;
+    int notVisitedCount = questionStatuses.where((s) => s == QuestionStatus.notVisited).length;
+    int markedAndAnsweredCount = questionStatuses.where((s) => s == QuestionStatus.markedAndAnswered).length;
+    int notAnsweredCount = questionStatuses.where((s) => s == QuestionStatus.notAnswered).length;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.65,
+          height: MediaQuery.of(context).size.height * 0.75,
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Question Palette', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
+              // User Info Header
+              Row(
                 children: [
-                  _buildLegendItem(Colors.green, 'Answered'),
-                  _buildLegendItem(Colors.red, 'Not Answered'),
-                  _buildLegendItem(Colors.blue, 'Review'),
-                  _buildLegendItem(Colors.grey.shade300, 'Not Visited', textColor: Colors.black),
+                  const CircleAvatar(
+                    backgroundColor: Color(0xFF1A237E),
+                    child: Icon(Icons.person, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(user?.displayName ?? 'Priyanshu', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Spacer(),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                 ],
               ),
-              const Divider(height: 24),
+              const Divider(),
+              // Status Legend Row
+              Wrap(
+                spacing: 10,
+                runSpacing: 6,
+                children: [
+                  _buildLegendBadge(Colors.green, '$answeredCount Answered'),
+                  _buildLegendBadge(Colors.purple, '$markedCount Marked'),
+                  _buildLegendBadge(Colors.grey.shade300, '$notVisitedCount Not Visited', textColor: Colors.black),
+                  _buildLegendBadge(Colors.blue, '$markedAndAnsweredCount Marked & Answered'),
+                  _buildLegendBadge(Colors.red, '$notAnsweredCount Not Answered'),
+                ],
+              ),
+              const Divider(height: 20),
+              // Question Number Grid
               Expanded(
                 child: GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -231,11 +266,14 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       case QuestionStatus.answered:
                         bgColor = Colors.green;
                         break;
+                      case QuestionStatus.markedForReview:
+                        bgColor = Colors.purple;
+                        break;
+                      case QuestionStatus.markedAndAnswered:
+                        bgColor = Colors.blue;
+                        break;
                       case QuestionStatus.notAnswered:
                         bgColor = Colors.red;
-                        break;
-                      case QuestionStatus.markedForReview:
-                        bgColor = Colors.blue;
                         break;
                       case QuestionStatus.notVisited:
                       default:
@@ -258,6 +296,15 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                   },
                 ),
               ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
+                  onPressed: _submitTest,
+                  child: const Text('Submit Test', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
             ],
           ),
         );
@@ -265,14 +312,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     );
   }
 
-  Widget _buildLegendItem(Color color, String label, {Color textColor = Colors.white}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 16, height: 16, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4))),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11)),
-      ],
+  Widget _buildLegendBadge(Color color, String label, {Color textColor = Colors.white}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+      child: Text(label, style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -319,18 +363,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           .collection('paused_tests')
           .doc(widget.testId)
           .delete();
-
-      await FirebaseFirestore.instance
-          .collection('leaderboards')
-          .doc(widget.testId)
-          .collection('ranks')
-          .doc(user.uid)
-          .set({
-        'userUid': user.uid,
-        'userName': user.displayName ?? 'Student',
-        'score': totalScore,
-        'attemptedAt': FieldValue.serverTimestamp(),
-      });
     }
 
     if (mounted) {
@@ -385,117 +417,123 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           iconTheme: const IconThemeData(color: Colors.white),
           title: Text(
             widget.testTitle,
-            style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.pause_circle_outline, color: Colors.amber),
-              onPressed: _showPauseDialog,
-            ),
+            IconButton(icon: const Icon(Icons.pause_circle_outline, color: Colors.amber), onPressed: _showPauseDialog),
             TextButton(
               onPressed: () => setState(() => _currentLang = _currentLang == 'HI' ? 'EN' : 'HI'),
-              child: Text(
-                _currentLang == 'HI' ? 'हिंदी' : 'ENGLISH',
-                style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12),
-              ),
+              child: Text(_currentLang == 'HI' ? 'हिंदी' : 'ENGLISH', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 11)),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(10)),
               child: Text(_formatTime(_secondsRemaining), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 11)),
             ),
-            IconButton(
-              icon: const Icon(Icons.grid_view, color: Colors.white),
-              onPressed: _openQuestionPalette,
-            ),
+            IconButton(icon: const Icon(Icons.grid_view, color: Colors.white), onPressed: _openQuestionPalette),
           ],
         ),
         backgroundColor: const Color(0xFFF4F6FA),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Chip(
-                    label: Text(currentQ['section'] ?? 'General', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    backgroundColor: Colors.blue.shade100,
-                  ),
-                  Text('Q ${currentQuestionIndex + 1} / ${questions.length}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(qText, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
+        body: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Chip(
+                          label: Text('PART-B (${currentQ['section'] ?? 'General'})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                          backgroundColor: const Color(0xFF1A237E),
+                        ),
+                        Text('No. ${currentQuestionIndex + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14.0),
+                        child: Text(qText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Column(
+                      children: List.generate(options.length, (optIdx) {
+                        final isSelected = selectedAnswers[currentQuestionIndex] == optIdx;
+                        return Card(
+                          elevation: isSelected ? 2 : 1,
+                          color: isSelected ? Colors.indigo.shade50 : Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                          ),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            dense: true,
+                            title: Text(options[optIdx], style: const TextStyle(fontSize: 13)),
+                            leading: Radio<int>(
+                              value: optIdx,
+                              groupValue: selectedAnswers[currentQuestionIndex],
+                              activeColor: const Color(0xFF1A237E),
+                              onChanged: (val) => _selectOption(optIdx),
+                            ),
+                            onTap: () => _selectOption(optIdx),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: options.length,
-                  itemBuilder: (context, optIdx) {
-                    final isSelected = selectedAnswers[currentQuestionIndex] == optIdx;
-                    return Card(
-                      elevation: isSelected ? 3 : 1,
-                      color: isSelected ? Colors.indigo.shade50 : Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, width: isSelected ? 2 : 1),
-                      ),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        title: Text(options[optIdx]),
-                        leading: Radio<int>(
-                          value: optIdx,
-                          groupValue: selectedAnswers[currentQuestionIndex],
-                          activeColor: const Color(0xFF1A237E),
-                          onChanged: (val) => _selectOption(optIdx),
-                        ),
-                        onTap: () => _selectOption(optIdx),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ),
+            
+            // Exact Bottom Action Buttons Bar from Video
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300))),
+              child: Row(
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _toggleMarkForReview,
-                    icon: const Icon(Icons.bookmark_border, size: 16),
-                    label: const Text('Review', style: TextStyle(fontSize: 11)),
+                  if (currentQuestionIndex > 0)
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10)),
+                      onPressed: () => _onQuestionChanged(currentQuestionIndex - 1),
+                      child: const Text('Previous Question', style: TextStyle(fontSize: 10)),
+                    ),
+                  const Spacer(),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.purple),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    onPressed: _markForReviewAndNext,
+                    child: const Text('Mark & Save For Review', style: TextStyle(fontSize: 10, color: Colors.purple, fontWeight: FontWeight.bold)),
                   ),
-                  Row(
-                    children: [
-                      if (currentQuestionIndex > 0)
-                        TextButton(
-                          onPressed: () => _onQuestionChanged(currentQuestionIndex - 1),
-                          child: const Text('Prev'),
-                        ),
-                      const SizedBox(width: 8),
-                      if (currentQuestionIndex < questions.length - 1)
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
-                          onPressed: () => _onQuestionChanged(currentQuestionIndex + 1),
-                          child: const Text('Next', style: TextStyle(color: Colors.white)),
-                        )
-                      else
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
-                          onPressed: _submitTest,
-                          child: const Text('Submit', style: TextStyle(color: Colors.white)),
-                        ),
-                    ],
+                  const SizedBox(width: 4),
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.orange),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    onPressed: _clearResponse,
+                    child: const Text('Clear Response', style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 4),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A237E),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    onPressed: _saveAndNext,
+                    child: const Text('Save & Next', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
