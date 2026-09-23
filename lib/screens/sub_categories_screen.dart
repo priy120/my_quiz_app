@@ -1,15 +1,80 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'test_series_screen.dart';
 
-class SubCategoriesScreen extends StatelessWidget {
+class SubCategoriesScreen extends StatefulWidget {
   final String categoryName;
 
   const SubCategoriesScreen({
     super.key,
     required this.categoryName,
   });
+
+  @override
+  State<SubCategoriesScreen> createState() => _SubCategoriesScreenState();
+}
+
+class _SubCategoriesScreenState extends State<SubCategoriesScreen> {
+  late Razorpay _razorpay;
+
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  void _startRazorpayPayment() {
+    var options = {
+      'key': 'rzp_live_TcFnwjnPCAzll2',
+      'amount': 29900, // ₹299.00 in paise
+      'name': 'CompeteMe Portal',
+      'description': '${widget.categoryName} Test Series Pass',
+      'prefill': {
+        'contact': '9999999999',
+        'email': 'priyanshu2001pal@gmail.com'
+      },
+      'external': {
+        'wallets': ['paytm']
+      }
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Payment Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment Successful! ID: ${response.paymentId}'), backgroundColor: Colors.green),
+    );
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment Failed: ${response.message}'), backgroundColor: Colors.red),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Wallet Selected: ${response.walletName}'), backgroundColor: Colors.blue),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +84,7 @@ class SubCategoriesScreen extends StatelessWidget {
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.black),
         title: Text(
-          '$categoryName Packages',
+          '${widget.categoryName} Packages',
           style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ),
@@ -31,14 +96,12 @@ class SubCategoriesScreen extends StatelessWidget {
 
           final allDocs = snapshot.data!.docs;
 
-          // Category wise filtering
           final categoryDocs = allDocs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final docCat = (data['category'] ?? '').toString().toUpperCase();
-            return docCat == categoryName.toUpperCase();
+            return docCat == widget.categoryName.toUpperCase();
           }).toList();
 
-          // Sub-categories and test counts grouping
           final Map<String, Map<String, int>> subCategoryMap = {};
 
           for (var doc in categoryDocs) {
@@ -59,7 +122,7 @@ class SubCategoriesScreen extends StatelessWidget {
           if (subCategoryMap.isEmpty) {
             return Center(
               child: Text(
-                'No packages available for $categoryName yet.',
+                'No packages available for ${widget.categoryName} yet.',
                 style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13),
               ),
             );
@@ -129,7 +192,7 @@ class SubCategoriesScreen extends StatelessWidget {
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => TestSeriesScreen(
-                                          categoryName: categoryName,
+                                          categoryName: widget.categoryName,
                                           subCategoryName: subCatTitle,
                                         ),
                                       ),
@@ -159,7 +222,7 @@ class SubCategoriesScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () {},
+                    onPressed: _startRazorpayPayment,
                     child: const Text('Buy Now', style: TextStyle(color: Color(0xFF1A237E), fontWeight: FontWeight.bold, fontSize: 15)),
                   ),
                 ),
