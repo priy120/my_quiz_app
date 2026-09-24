@@ -6,6 +6,7 @@ import 'instructions_screen.dart';
 import 'quiz_engine_screen.dart';
 import 'solutions_screen.dart';
 import 'analysis_screen.dart';
+import 'plans_screen.dart';
 
 class TestSeriesScreen extends StatefulWidget {
   final String categoryName;
@@ -173,6 +174,28 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                     _buildFilteredTestList(filteredDocs, 'Mocks Tests'),
                     _buildFilteredTestList(filteredDocs, 'Previous Years'),
                   ],
+                ),
+              ),
+              // Bottom Buy Now Pass Container
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                color: const Color(0xFF1A237E),
+                child: SafeArea(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PlansScreen()),
+                      );
+                    },
+                    child: const Text('Buy Now Pass', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
                 ),
               ),
             ],
