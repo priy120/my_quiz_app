@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'test_series_screen.dart';
+import 'plans_screen.dart';
 
 class SubCategoriesScreen extends StatefulWidget {
   final String categoryName;
@@ -17,65 +17,6 @@ class SubCategoriesScreen extends StatefulWidget {
 }
 
 class _SubCategoriesScreenState extends State<SubCategoriesScreen> {
-  late Razorpay _razorpay;
-
-  @override
-  void initState() {
-    super.initState();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
-  }
-
-  @override
-  void dispose() {
-    _razorpay.clear();
-    super.dispose();
-  }
-
-  void _startRazorpayPayment() {
-    var options = {
-      'key': 'rzp_live_TcFnwjnPCAzll2',
-      'amount': 29900, // ₹299.00 in paise
-      'name': 'CompeteMe Portal',
-      'description': '${widget.categoryName} Test Series Pass',
-      'prefill': {
-        'contact': '9999999999',
-        'email': 'priyanshu2001pal@gmail.com'
-      },
-      'external': {
-        'wallets': ['paytm']
-      }
-    };
-
-    try {
-      _razorpay.open(options);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment Error: $e'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Payment Successful! ID: ${response.paymentId}'), backgroundColor: Colors.green),
-    );
-  }
-
-  void _handlePaymentError(PaymentFailureResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Payment Failed: ${response.message}'), backgroundColor: Colors.red),
-    );
-  }
-
-  void _handleExternalWallet(ExternalWalletResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Wallet Selected: ${response.walletName}'), backgroundColor: Colors.blue),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -211,6 +152,7 @@ class _SubCategoriesScreenState extends State<SubCategoriesScreen> {
                   },
                 ),
               ),
+              // Bottom Buy Now Pass Button connecting to PlansScreen
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
@@ -218,12 +160,17 @@ class _SubCategoriesScreenState extends State<SubCategoriesScreen> {
                 child: SafeArea(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
+                      backgroundColor: Colors.amber.shade700,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: _startRazorpayPayment,
-                    child: const Text('Buy Now', style: TextStyle(color: Color(0xFF1A237E), fontWeight: FontWeight.bold, fontSize: 15)),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PlansScreen()),
+                      );
+                    },
+                    child: const Text('Buy Now Pass', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                   ),
                 ),
               ),
