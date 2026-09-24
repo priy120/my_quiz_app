@@ -128,7 +128,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   String _formatTime(int totalSeconds) {
     int minutes = totalSeconds ~/ 60;
     int seconds = totalSeconds % 60;
-    return '${minutes.toStringAndPadLeft(2, '0')}:${seconds.toStringAndPadLeft(2, '0')}';
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   String _getParsedText(String rawText) {
@@ -386,7 +386,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
+      onPopInvoked: (bool didPop) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
         if (shouldPop && context.mounted) {
@@ -685,12 +685,5 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         ),
       ),
     );
-  }
-}
-
-// Helper String extension method for formatting time safely
-extension StringPadExtension on String {
-  String toStringAndPadLeft(int width, String padding) {
-    return padLeft(width, padding);
   }
 }
