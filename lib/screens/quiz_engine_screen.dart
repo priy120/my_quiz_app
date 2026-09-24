@@ -31,9 +31,10 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   List<Map<String, dynamic>> questions = [];
   bool _isLoadingQuestions = true;
-  late List<int?> selectedAnswers;
-  late List<QuestionStatus> questionStatuses;
+  List<int?> selectedAnswers = [];
+  List<QuestionStatus> questionStatuses = [];
   String _currentLang = 'HI';
+  bool _isPaletteExpanded = false; // Question Palette toggle control
 
   // Section Tracking
   final List<String> _sections = ['Quantitative Aptitude', 'Logical Reasoning', 'English Language', 'General Awareness'];
@@ -48,7 +49,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   Future<void> _fetchQuestionsAndSavedState() async {
     try {
-      // 1. Fetch Test Details (Dynamic Time in Minutes from Admin Panel)
+      // 1. Fetch Test Details
       final testDoc = await FirebaseFirestore.instance
           .collection('mock_tests')
           .doc(widget.testId)
@@ -57,7 +58,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       if (testDoc.exists) {
         final testData = testDoc.data();
         int adminDurationMinutes = testData?['durationMinutes'] ?? 60;
-        _secondsRemaining = adminDurationMinutes * 60; // Admin time in seconds
+        _secondsRemaining = adminDurationMinutes * 60;
       }
 
       // 2. Fetch Questions
@@ -102,18 +103,19 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         }
 
         _pageController = PageController(initialPage: currentQuestionIndex);
-        setState(() => _isLoadingQuestions = false);
+        if (mounted) setState(() => _isLoadingQuestions = false);
         _startTimer();
       } else {
-        setState(() => _isLoadingQuestions = false);
+        if (mounted) setState(() => _isLoadingQuestions = false);
       }
     } catch (e) {
-      setState(() => _isLoadingQuestions = false);
+      if (mounted) setState(() => _isLoadingQuestions = false);
     }
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
       if (_secondsRemaining > 0) {
         setState(() => _secondsRemaining--);
       } else {
@@ -126,7 +128,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   String _formatTime(int totalSeconds) {
     int minutes = totalSeconds ~/ 60;
     int seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    return '${minutes.toStringAndPadLeft(2, '0')}:${seconds.toStringAndPadLeft(2, '0')}';
   }
 
   String _getParsedText(String rawText) {
@@ -212,153 +214,52 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     );
   }
 
-  void _openQuestionPaletteSheet() {
-    int answeredCount = questionStatuses.where((s) => s == QuestionStatus.answered).length;
-    int markedCount = questionStatuses.where((s) => s == QuestionStatus.markedForReview).length;
-    int notVisitedCount = questionStatuses.where((s) => s == QuestionStatus.notVisited).length;
-    int markedAndAnsweredCount = questionStatuses.where((s) => s == QuestionStatus.markedAndAnswered).length;
-    int notAnsweredCount = questionStatuses.where((s) => s == QuestionStatus.notAnswered).length;
-
-    final user = FirebaseAuth.instance.currentUser;
-
-    showModalBottomSheet(
+  // --- PAUSE & SAVE TEST LOGIC ---
+  Future<bool> _onWillPop() async {
+    final shouldPause = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.85,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const CircleAvatar(backgroundColor: Color(0xFF1A237E), child: Icon(Icons.person, color: Colors.white)),
-                  const SizedBox(width: 10),
-                  Text(user?.displayName ?? 'Priyanshu', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const Spacer(),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                ],
-              ),
-              const Divider(),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  _buildLegendBadge(Colors.green, '$answeredCount Answered'),
-                  _buildLegendBadge(Colors.purple, '$markedCount Marked'),
-                  _buildLegendBadge(Colors.grey.shade300, '$notVisitedCount Not Visited', textColor: Colors.black),
-                  _buildLegendBadge(Colors.blue, '$markedAndAnsweredCount Marked & Answered'),
-                  _buildLegendBadge(Colors.red, '$notAnsweredCount Not Answered'),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text('SECTION : ${_sections[_currentSectionIndex]}', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.indigo)),
-              const Divider(),
-              Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemCount: questions.length,
-                  itemBuilder: (context, index) {
-                    final status = questionStatuses[index];
-                    Color bgColor;
-                    Color textColor = Colors.white;
-
-                    switch (status) {
-                      case QuestionStatus.answered:
-                        bgColor = Colors.green;
-                        break;
-                      case QuestionStatus.markedForReview:
-                        bgColor = Colors.purple;
-                        break;
-                      case QuestionStatus.markedAndAnswered:
-                        bgColor = Colors.blue;
-                        break;
-                      case QuestionStatus.notAnswered:
-                        bgColor = Colors.red;
-                        break;
-                      case QuestionStatus.notVisited:
-                      default:
-                        bgColor = Colors.grey.shade300;
-                        textColor = Colors.black;
-                        break;
-                    }
-
-                    return InkWell(
-                      onTap: () {
-                        Navigator.pop(context);
-                        _navigateToQuestion(index);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(6)),
-                        alignment: Alignment.center,
-                        child: Text('${index + 1}', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Question Paper', style: TextStyle(fontSize: 11)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Instructions', style: TextStyle(fontSize: 11)),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _confirmSubmitDialog(isSectionSubmit: true);
-                  },
-                  child: const Text('Submit This Section', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo.shade900),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _confirmSubmitDialog(isSectionSubmit: false);
-                  },
-                  child: const Text('Submit Test', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Pause Test?'),
+        content: const Text('Do you want to pause your test and exit? Your progress will be saved so you can resume later.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Resume Test'),
           ),
-        );
-      },
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
+            onPressed: () async {
+              await _pauseAndSaveTest();
+              if (context.mounted) {
+                Navigator.pop(context, true);
+              }
+            },
+            child: const Text('Pause & Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
+    return shouldPause ?? false;
   }
 
-  Widget _buildLegendBadge(Color color, String label, {Color textColor = Colors.white}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
-      child: Text(label, style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold)),
-    );
+  Future<void> _pauseAndSaveTest() async {
+    _timer?.cancel();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('paused_tests')
+          .doc(widget.testId)
+          .set({
+        'testId': widget.testId,
+        'testTitle': widget.testTitle,
+        'remainingSeconds': _secondsRemaining,
+        'currentIndex': currentQuestionIndex,
+        'selectedAnswers': selectedAnswers,
+        'pausedAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 
   void _confirmSubmitDialog({bool isSectionSubmit = false}) {
@@ -409,6 +310,14 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // Clear paused test state upon completion
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('paused_tests')
+          .doc(widget.testId)
+          .delete();
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -417,7 +326,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           .set({
         'testId': widget.testId,
         'testTitle': widget.testTitle,
-        'score': '${totalScore.toStringAsFixed(1)} / ${questions.length * 2}',
+        'score': totalScore,
+        'maxScore': questions.length * 2,
         'correctCount': correctCount,
         'wrongCount': wrongCount,
         'selectedAnswers': selectedAnswers,
@@ -452,6 +362,15 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     super.dispose();
   }
 
+  // Question Palette Legend Helper
+  Widget _buildLegendBadge(Color color, String label, {Color textColor = Colors.white}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+      child: Text(label, style: TextStyle(color: textColor, fontSize: 9, fontWeight: FontWeight.bold)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoadingQuestions) {
@@ -465,179 +384,313 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1A237E),
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(widget.testTitle, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.g_translate, color: Colors.white, size: 20),
-            onSelected: (val) => setState(() => _currentLang = val),
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'EN', child: Text('English')),
-              const PopupMenuItem(value: 'HI', child: Text('हिंदी')),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-            decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(6)),
-            child: Text(_formatTime(_secondsRemaining), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 10)),
-          ),
-          IconButton(icon: const Icon(Icons.info_outline, color: Colors.white), onPressed: () {}),
-        ],
-      ),
-      backgroundColor: const Color(0xFFF4F6FA),
-      floatingActionButton: FloatingActionButton(
-        mini: true,
-        backgroundColor: Colors.green.shade700,
-        onPressed: _openQuestionPaletteSheet,
-        child: const Icon(Icons.grid_view, color: Colors.white),
-      ),
-      body: Column(
-        children: [
-          Container(
-            color: const Color(0xFF1A237E),
-            height: 40,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _sections.length,
-              itemBuilder: (context, index) {
-                final isSel = _currentSectionIndex == index;
-                return GestureDetector(
-                  onTap: () {
-                    if (index != _currentSectionIndex) {
-                      _showSectionToast();
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSel ? Colors.indigo.shade900 : Colors.transparent,
-                      border: Border(bottom: BorderSide(color: isSel ? Colors.amber : Colors.transparent, width: 3)),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1A237E),
+          iconTheme: const IconThemeData(color: Colors.white),
+          title: Text(widget.testTitle, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+          actions: [
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.g_translate, color: Colors.white, size: 20),
+              onSelected: (val) => setState(() => _currentLang = val),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'EN', child: Text('English')),
+                const PopupMenuItem(value: 'HI', child: Text('हिंदी')),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(6)),
+              child: Text(_formatTime(_secondsRemaining), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 10)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.pause_circle_outline, color: Colors.white),
+              onPressed: () async {
+                final shouldPop = await _onWillPop();
+                if (shouldPop && context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFFF4F6FA),
+        body: Column(
+          children: [
+            // Top Section Tabs Bar
+            Container(
+              color: const Color(0xFF1A237E),
+              height: 40,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _sections.length,
+                itemBuilder: (context, index) {
+                  final isSel = _currentSectionIndex == index;
+                  return GestureDetector(
+                    onTap: () {
+                      if (index != _currentSectionIndex) {
+                        _showSectionToast();
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSel ? Colors.indigo.shade900 : Colors.transparent,
+                        border: Border(bottom: BorderSide(color: isSel ? Colors.amber : Colors.transparent, width: 3)),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _sections[index],
+                        style: TextStyle(
+                          color: isSel ? Colors.amber : Colors.white70,
+                          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _sections[index],
-                      style: TextStyle(
-                        color: isSel ? Colors.amber : Colors.white70,
-                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 12,
+                  );
+                },
+              ),
+            ),
+
+            // Question Page View Content
+            Expanded(
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: _onQuestionPageChanged,
+                itemCount: questions.length,
+                itemBuilder: (context, index) {
+                  final qData = questions[index];
+                  final String displayQText = _getParsedText(qData['questionText'] ?? '');
+                  final List<String> displayOptions = _extractOptions(qData['options']);
+
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('No. ${index + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Row(
+                              children: [
+                                IconButton(icon: const Icon(Icons.bookmark_border, size: 20), onPressed: () {}),
+                                const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Card(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14.0),
+                            child: Text(displayQText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Column(
+                          children: List.generate(displayOptions.length, (optIdx) {
+                            final isSelected = selectedAnswers[index] == optIdx;
+                            return Card(
+                              elevation: isSelected ? 2 : 1,
+                              color: isSelected ? Colors.indigo.shade50 : Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                              ),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: ListTile(
+                                dense: true,
+                                title: Text(displayOptions[optIdx], style: const TextStyle(fontSize: 13)),
+                                leading: Radio<int>(
+                                  value: optIdx,
+                                  groupValue: selectedAnswers[index],
+                                  activeColor: const Color(0xFF1A237E),
+                                  onChanged: (val) => _selectOption(optIdx),
+                                ),
+                                onTap: () => _selectOption(optIdx),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // --- INLINE QUESTION PALETTE AREA (Save & Next Ke Thik Upar) ---
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, -2))],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Toggle Bar for Palette Expansion
+                  InkWell(
+                    onTap: () => setState(() => _isPaletteExpanded = !_isPaletteExpanded),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      color: Colors.indigo.shade50,
+                      child: Row(
+                        children: [
+                          Icon(_isPaletteExpanded ? Icons.keyboard_arrow_down : Icons.grid_view, size: 18, color: const Color(0xFF1A237E)),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Question Palette (${currentQuestionIndex + 1}/${questions.length})',
+                            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF1A237E)),
+                          ),
+                          const Spacer(),
+                          Icon(_isPaletteExpanded ? Icons.expand_more : Icons.expand_less, color: const Color(0xFF1A237E)),
+                        ],
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-          ),
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              onPageChanged: _onQuestionPageChanged,
-              itemCount: questions.length,
-              itemBuilder: (context, index) {
-                final qData = questions[index];
-                final String displayQText = _getParsedText(qData['questionText'] ?? '');
-                final List<String> displayOptions = _extractOptions(qData['options']);
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Collapsible Grid View and Badges
+                  if (_isPaletteExpanded)
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('No. ${index + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
                             children: [
-                              IconButton(icon: const Icon(Icons.bookmark_border, size: 20), onPressed: () {}),
-                              const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                              _buildLegendBadge(Colors.green, '${questionStatuses.where((s) => s == QuestionStatus.answered).length} Ans'),
+                              _buildLegendBadge(Colors.purple, '${questionStatuses.where((s) => s == QuestionStatus.markedForReview).length} Marked'),
+                              _buildLegendBadge(Colors.grey.shade300, '${questionStatuses.where((s) => s == QuestionStatus.notVisited).length} Unvisited', textColor: Colors.black),
+                              _buildLegendBadge(Colors.blue, '${questionStatuses.where((s) => s == QuestionStatus.markedAndAnswered).length} Ans & Mark'),
+                              _buildLegendBadge(Colors.red, '${questionStatuses.where((s) => s == QuestionStatus.notAnswered).length} Not Ans'),
                             ],
+                          ),
+                          const Divider(height: 10),
+                          Expanded(
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 7,
+                                crossAxisSpacing: 6,
+                                mainAxisSpacing: 6,
+                              ),
+                              itemCount: questions.length,
+                              itemBuilder: (context, index) {
+                                final status = questionStatuses[index];
+                                Color bgColor;
+                                Color textColor = Colors.white;
+
+                                switch (status) {
+                                  case QuestionStatus.answered:
+                                    bgColor = Colors.green;
+                                    break;
+                                  case QuestionStatus.markedForReview:
+                                    bgColor = Colors.purple;
+                                    break;
+                                  case QuestionStatus.markedAndAnswered:
+                                    bgColor = Colors.blue;
+                                    break;
+                                  case QuestionStatus.notAnswered:
+                                    bgColor = Colors.red;
+                                    break;
+                                  case QuestionStatus.notVisited:
+                                  default:
+                                    bgColor = Colors.grey.shade300;
+                                    textColor = Colors.black;
+                                    break;
+                                }
+
+                                final isCurrent = currentQuestionIndex == index;
+
+                                return InkWell(
+                                  onTap: () {
+                                    _navigateToQuestion(index);
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: bgColor,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: isCurrent ? Border.all(color: Colors.amber, width: 2) : null,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text('${index + 1}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: textColor)),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ],
                       ),
-                      Card(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14.0),
-                          child: Text(displayQText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Column(
-                        children: List.generate(displayOptions.length, (optIdx) {
-                          final isSelected = selectedAnswers[index] == optIdx;
-                          return Card(
-                            elevation: isSelected ? 2 : 1,
-                            color: isSelected ? Colors.indigo.shade50 : Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, width: isSelected ? 2 : 1),
-                            ),
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              dense: true,
-                              title: Text(displayOptions[optIdx], style: const TextStyle(fontSize: 13)),
-                              leading: Radio<int>(
-                                value: optIdx,
-                                groupValue: selectedAnswers[index],
-                                activeColor: const Color(0xFF1A237E),
-                                onChanged: (val) => _selectOption(optIdx),
-                              ),
-                              onTap: () => _selectOption(optIdx),
-                            ),
-                          );
-                        }),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                    ),
+                ],
+              ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-            decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300))),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
-                    onPressed: currentQuestionIndex > 0 ? () => _navigateToQuestion(currentQuestionIndex - 1) : null,
-                    child: const Text('Previous Question', style: TextStyle(fontSize: 10)),
+
+            // --- BOTTOM NAVIGATION ACTION BUTTONS ---
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300))),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                      onPressed: currentQuestionIndex > 0 ? () => _navigateToQuestion(currentQuestionIndex - 1) : null,
+                      child: const Text('Previous', style: TextStyle(fontSize: 10)),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.purple), padding: EdgeInsets.zero),
-                    onPressed: _markForReviewAndNext,
-                    child: const Text('Mark & Save For Review', style: TextStyle(fontSize: 9, color: Colors.purple, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.purple), padding: EdgeInsets.zero),
+                      onPressed: _markForReviewAndNext,
+                      child: const Text('Mark & Save', style: TextStyle(fontSize: 9, color: Colors.purple, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), padding: EdgeInsets.zero),
-                    onPressed: _clearResponse,
-                    child: const Text('Clear Response', style: TextStyle(fontSize: 9, color: Colors.red, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), padding: EdgeInsets.zero),
+                      onPressed: _clearResponse,
+                      child: const Text('Clear', style: TextStyle(fontSize: 9, color: Colors.red, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E), padding: EdgeInsets.zero),
-                    onPressed: _saveAndNext,
-                    child: const Text('Save & Next', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E), padding: EdgeInsets.zero),
+                      onPressed: _saveAndNext,
+                      child: const Text('Save & Next', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+}
+
+// Helper String extension method for formatting time safely
+extension StringPadExtension on String {
+  String toStringAndPadLeft(int width, String padding) {
+    return padLeft(width, padding);
   }
 }
