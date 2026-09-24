@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'sub_categories_screen.dart';
+import 'plans_screen.dart';
 
 class ExamCategoriesScreen extends StatefulWidget {
   const ExamCategoriesScreen({super.key});
@@ -12,8 +12,6 @@ class ExamCategoriesScreen extends StatefulWidget {
 }
 
 class _ExamCategoriesScreenState extends State<ExamCategoriesScreen> {
-  late Razorpay _razorpay;
-
   final Map<String, String> _categoryLogos = const {
     'SSC': 'https://upload.wikimedia.org/wikipedia/commons/d/d4/Staff_Selection_Commission_Logo.png',
     'RAILWAYS': 'https://upload.wikimedia.org/wikipedia/en/thumb/4/45/Indian_Railways_logo.svg/1200px-Indian_Railways_logo.svg.png',
@@ -26,56 +24,23 @@ class _ExamCategoriesScreenState extends State<ExamCategoriesScreen> {
   };
 
   @override
-  void initState() {
-    super.initState();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handleSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handleError);
-  }
-
-  @override
-  void dispose() {
-    _razorpay.clear();
-    super.dispose();
-  }
-
-  void _openRazorpay() {
-    var options = {
-      'key': 'rzp_live_TcFnwjnPCAzll2',
-      'amount': 29900,
-      'name': 'CompeteMe Pass',
-      'description': 'All Exam Series Pass',
-      'prefill': {'contact': '9999999999', 'email': 'priyanshu2001pal@gmail.com'}
-    };
-    try {
-      _razorpay.open(options);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
-  }
-
-  void _handleSuccess(PaymentSuccessResponse r) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment Success: ${r.paymentId}'), backgroundColor: Colors.green));
-  }
-
-  void _handleError(PaymentFailureResponse r) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${r.message}'), backgroundColor: Colors.red));
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.black),
-        title: Text('Test Series', style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text(
+          'Test Series',
+          style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
+        ),
       ),
       backgroundColor: const Color(0xFFF4F6FA),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('exam_categories').snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          
           final docs = snapshot.data!.docs;
           final List<String> categories = docs.isNotEmpty
               ? docs.map((d) => d.id.toUpperCase()).toList()
@@ -87,27 +52,51 @@ class _ExamCategoriesScreenState extends State<ExamCategoriesScreen> {
                 child: GridView.builder(
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.8,
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.8,
                   ),
                   itemCount: categories.length,
                   itemBuilder: (context, index) {
                     final catName = categories[index];
                     final logoUrl = _categoryLogos[catName] ?? 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
+                    
                     return InkWell(
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => SubCategoriesScreen(categoryName: catName)));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SubCategoriesScreen(categoryName: catName),
+                          ),
+                        );
                       },
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 6,
+                            )
+                          ],
                         ),
                         child: Row(
                           children: [
-                            Expanded(child: Text(catName, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13))),
-                            Image.network(logoUrl, width: 34, height: 34, errorBuilder: (_, __, ___) => const Icon(Icons.school, color: Colors.indigo)),
+                            Expanded(
+                              child: Text(
+                                catName,
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                            ),
+                            Image.network(
+                              logoUrl,
+                              width: 34,
+                              height: 34,
+                              errorBuilder: (_, __, ___) => const Icon(Icons.school, color: Colors.indigo),
+                            ),
                           ],
                         ),
                       ),
@@ -115,15 +104,29 @@ class _ExamCategoriesScreenState extends State<ExamCategoriesScreen> {
                   },
                 ),
               ),
+              
+              // Bottom Buy Now Pass Button
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 color: const Color(0xFF1A237E),
                 child: SafeArea(
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
-                    onPressed: _openRazorpay,
-                    child: const Text('Buy Now', style: TextStyle(color: Color(0xFF1A237E), fontWeight: FontWeight.bold, fontSize: 15)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PlansScreen()),
+                      );
+                    },
+                    child: const Text(
+                      'Buy Now Pass',
+                      style: TextStyle(color: Color(0xFF1A237E), fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
                   ),
                 ),
               ),
