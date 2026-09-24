@@ -110,14 +110,17 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
         stream: FirebaseFirestore.instance.collection('mock_tests').snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          
           final filteredDocs = snapshot.data!.docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            return (data['category'] ?? '').toString().toUpperCase() == widget.categoryName.toUpperCase() &&
-                   (data['subCategory'] ?? '').toString() == widget.subCategoryName;
+            final docCat = (data['category'] ?? '').toString().trim().toUpperCase();
+            final docSubCat = (data['subCategory'] ?? '').toString().trim();
+            return docCat == widget.categoryName.trim().toUpperCase() && docSubCat == widget.subCategoryName.trim();
           }).toList();
 
           return Column(
             children: [
+              // Section Filter Tabs (Full Tests vs Sectional Tests)
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
@@ -128,9 +131,17 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                         onTap: () => setState(() => _selectedSectionFilter = 'Full Tests'),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: _selectedSectionFilter == 'Full Tests' ? headerColor : Colors.transparent, width: 2))),
+                          decoration: BoxDecoration(
+                            border: Border(bottom: BorderSide(color: _selectedSectionFilter == 'Full Tests' ? headerColor : Colors.transparent, width: 2)),
+                          ),
                           alignment: Alignment.center,
-                          child: Text('Full Tests', style: TextStyle(fontWeight: _selectedSectionFilter == 'Full Tests' ? FontWeight.bold : FontWeight.normal, color: _selectedSectionFilter == 'Full Tests' ? headerColor : Colors.grey)),
+                          child: Text(
+                            'Full Tests',
+                            style: TextStyle(
+                              fontWeight: _selectedSectionFilter == 'Full Tests' ? FontWeight.bold : FontWeight.normal,
+                              color: _selectedSectionFilter == 'Full Tests' ? headerColor : Colors.grey,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -139,15 +150,25 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                         onTap: () => setState(() => _selectedSectionFilter = 'Sectional Tests'),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: _selectedSectionFilter == 'Sectional Tests' ? headerColor : Colors.transparent, width: 2))),
+                          decoration: BoxDecoration(
+                            border: Border(bottom: BorderSide(color: _selectedSectionFilter == 'Sectional Tests' ? headerColor : Colors.transparent, width: 2)),
+                          ),
                           alignment: Alignment.center,
-                          child: Text('Sectional Tests', style: TextStyle(fontWeight: _selectedSectionFilter == 'Sectional Tests' ? FontWeight.bold : FontWeight.normal, color: _selectedSectionFilter == 'Sectional Tests' ? headerColor : Colors.grey)),
+                          child: Text(
+                            'Sectional Tests',
+                            style: TextStyle(
+                              fontWeight: _selectedSectionFilter == 'Sectional Tests' ? FontWeight.bold : FontWeight.normal,
+                              color: _selectedSectionFilter == 'Sectional Tests' ? headerColor : Colors.grey,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
+
+              // Sub Filters (All / Free / Latest Tests)
               Container(
                 color: Colors.white,
                 height: 40,
@@ -167,6 +188,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                   }).toList(),
                 ),
               ),
+
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
@@ -176,7 +198,8 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                   ],
                 ),
               ),
-              // Bottom Buy Now Pass Container
+
+              // Bottom Buy Now Pass Button
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
@@ -209,14 +232,24 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
     final user = FirebaseAuth.instance.currentUser;
     final filteredList = docs.where((doc) {
       final data = doc.data() as Map<String, dynamic>;
-      bool matchTab = (data['tabType'] ?? 'Mocks Tests').toString().toLowerCase().contains(tabType.toLowerCase().split(' ')[0]);
-      bool matchSec = (data['sectionType'] ?? 'Full Tests').toString() == _selectedSectionFilter;
+      
+      String testTab = (data['tabType'] ?? 'Mocks Tests').toString();
+      bool matchTab = testTab.toLowerCase().contains(tabType.toLowerCase().split(' ')[0]);
+      
+      String secType = (data['sectionType'] ?? 'Full Tests').toString();
+      bool matchSec = secType == _selectedSectionFilter;
+
       bool isFree = data['isFree'] ?? false;
       bool matchSub = _selectedSubFilter == 'All' || (_selectedSubFilter == 'Free' && isFree) || _selectedSubFilter == 'Latest Tests';
+
       return matchTab && matchSec && matchSub;
     }).toList();
 
-    if (filteredList.isEmpty) return Center(child: Text("No $tabType found.", style: const TextStyle(color: Colors.grey)));
+    if (filteredList.isEmpty) {
+      return Center(
+        child: Text("No $tabType found.", style: const TextStyle(color: Colors.grey, fontSize: 13)),
+      );
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.all(12),
@@ -231,7 +264,9 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
         final totalQ = data['totalQuestions'] ?? 100;
         final isFree = data['isFree'] ?? false;
 
-        if (user == null) return _buildTestCard(testId, title, duration, marks, totalQ, isFree, 'start');
+        if (user == null) {
+          return _buildTestCard(testId, title, duration, marks, totalQ, isFree, 'start');
+        }
 
         return StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance.collection('users').doc(user.uid).collection('paused_tests').doc(testId).snapshots(),
@@ -265,7 +300,25 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                 const Icon(Icons.assignment, color: Color(0xFFD32F2F), size: 18),
                 const SizedBox(width: 8),
                 Expanded(child: Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13))),
-                if (!isFree) const Icon(Icons.lock, color: Colors.red, size: 18),
+                if (!isFree)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(4)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.lock, color: Colors.red, size: 14),
+                        SizedBox(width: 2),
+                        Text('Paid', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(4)),
+                    child: const Text('Free', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
@@ -312,9 +365,21 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                  onPressed: () => _onTestStartOrResume(testId, title, isResume: false),
-                  child: const Text('Start Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A237E),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  onPressed: () {
+                    if (!isFree) {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const PlansScreen()));
+                    } else {
+                      _onTestStartOrResume(testId, title, isResume: false);
+                    }
+                  },
+                  child: Text(
+                    !isFree ? 'Unlock Pass' : 'Start Now',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                  ),
                 ),
               ),
           ],
