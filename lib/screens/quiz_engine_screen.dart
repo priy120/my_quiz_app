@@ -27,7 +27,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late PageController _pageController;
   int currentQuestionIndex = 0;
   Timer? _timer;
-  int _secondsRemaining = 3600;
+  int _secondsRemaining = 3600; // Dynamic default
 
   List<Map<String, dynamic>> questions = [];
   bool _isLoadingQuestions = true;
@@ -48,6 +48,19 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   Future<void> _fetchQuestionsAndSavedState() async {
     try {
+      // 1. Fetch Test Details (Dynamic Time in Minutes from Admin Panel)
+      final testDoc = await FirebaseFirestore.instance
+          .collection('mock_tests')
+          .doc(widget.testId)
+          .get();
+
+      if (testDoc.exists) {
+        final testData = testDoc.data();
+        int adminDurationMinutes = testData?['durationMinutes'] ?? 60;
+        _secondsRemaining = adminDurationMinutes * 60; // Admin time in seconds
+      }
+
+      // 2. Fetch Questions
       final snapshot = await FirebaseFirestore.instance
           .collection('mock_tests')
           .doc(widget.testId)
@@ -72,7 +85,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
           if (savedDoc.exists) {
             final data = savedDoc.data()!;
-            _secondsRemaining = data['remainingSeconds'] ?? 3600;
+            _secondsRemaining = data['remainingSeconds'] ?? _secondsRemaining;
             currentQuestionIndex = data['currentIndex'] ?? 0;
             List<dynamic> savedAnswers = data['selectedAnswers'] ?? [];
             for (int i = 0; i < savedAnswers.length && i < selectedAnswers.length; i++) {
@@ -458,7 +471,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(widget.testTitle, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
         actions: [
-          // Language Switch Dropdown Popup
           PopupMenuButton<String>(
             icon: const Icon(Icons.g_translate, color: Colors.white, size: 20),
             onSelected: (val) => setState(() => _currentLang = val),
@@ -467,7 +479,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               const PopupMenuItem(value: 'HI', child: Text('हिंदी')),
             ],
           ),
-          // Timer Widget
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
@@ -486,7 +497,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       ),
       body: Column(
         children: [
-          // Top Section Tabs Bar
           Container(
             color: const Color(0xFF1A237E),
             height: 40,
@@ -521,8 +531,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               },
             ),
           ),
-
-          // Horizontal Question PageView Slider
           Expanded(
             child: PageView.builder(
               controller: _pageController,
@@ -589,8 +597,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               },
             ),
           ),
-
-          // Bottom Action Control Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
             decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300))),
