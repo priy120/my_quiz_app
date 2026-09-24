@@ -20,6 +20,7 @@ class SolutionsScreen extends StatefulWidget {
 class _SolutionsScreenState extends State<SolutionsScreen> {
   late PageController _pageController;
   int _currentIndex = 0;
+  bool _isReattemptMode = false;
 
   @override
   void initState() {
@@ -31,6 +32,15 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  List<String> _extractOptions(dynamic rawOptions) {
+    if (rawOptions is List) {
+      return rawOptions.map((e) => e.toString()).toList();
+    } else if (rawOptions is Map) {
+      return rawOptions.values.map((e) => e.toString()).toList();
+    }
+    return [];
   }
 
   @override
@@ -69,6 +79,25 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
 
           return Column(
             children: [
+              // Re-Attempt Toggle Header Bar
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    const Text('Re-attempt Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const Spacer(),
+                    Switch(
+                      value: _isReattemptMode,
+                      activeColor: const Color(0xFF1A237E),
+                      onChanged: (val) {
+                        setState(() => _isReattemptMode = val);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
               Expanded(
                 child: PageView.builder(
                   controller: _pageController,
@@ -77,7 +106,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                   itemBuilder: (context, index) {
                     final qData = questions[index].data() as Map<String, dynamic>;
                     final String qText = qData['questionText'] ?? '';
-                    final List options = qData['options'] ?? [];
+                    final List<String> options = _extractOptions(qData['options']);
                     final int correctIdx = qData['correctIndex'] ?? 0;
                     final String solution = qData['solutionText'] ?? 'Detailed explanation coming soon.';
 
@@ -86,40 +115,60 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Question ${index + 1} of ${questions.length}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.indigo)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Question ${index + 1} of ${questions.length}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.indigo)),
+                              if (!_isReattemptMode)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(4)),
+                                  child: const Text('CORRECT ANSWER', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10)),
+                                ),
+                            ],
+                          ),
                           const SizedBox(height: 8),
                           Card(child: Padding(padding: const EdgeInsets.all(12), child: Text(qText, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)))),
                           const SizedBox(height: 12),
                           ...List.generate(options.length, (optIdx) {
                             final isCorrect = optIdx == correctIdx;
+                            Color cardColor = Colors.white;
+                            BorderSide border = BorderSide(color: Colors.grey.shade300);
+
+                            if (!_isReattemptMode && isCorrect) {
+                              cardColor = Colors.green.shade50;
+                              border = const BorderSide(color: Colors.green, width: 2);
+                            }
+
                             return Card(
-                              color: isCorrect ? Colors.green.shade50 : Colors.white,
-                              shape: RoundedRectangleBorder(side: BorderSide(color: isCorrect ? Colors.green : Colors.grey.shade300)),
+                              color: cardColor,
+                              shape: RoundedRectangleBorder(side: border, borderRadius: BorderRadius.circular(8)),
                               child: ListTile(
                                 leading: CircleAvatar(
                                   radius: 12,
-                                  backgroundColor: isCorrect ? Colors.green : Colors.grey.shade200,
-                                  child: Icon(isCorrect ? Icons.check : Icons.close, size: 14, color: isCorrect ? Colors.white : Colors.grey),
+                                  backgroundColor: (!_isReattemptMode && isCorrect) ? Colors.green : Colors.grey.shade200,
+                                  child: Icon((!_isReattemptMode && isCorrect) ? Icons.check : Icons.circle_outlined, size: 14, color: (!_isReattemptMode && isCorrect) ? Colors.white : Colors.grey),
                                 ),
-                                title: Text(options[optIdx].toString()),
+                                title: Text(options[optIdx]),
                               ),
                             );
                           }),
                           const SizedBox(height: 16),
-                          Card(
-                            color: Colors.amber.shade50,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(children: [const Icon(Icons.lightbulb, color: Colors.amber, size: 18), const SizedBox(width: 6), Text('Explanation', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.brown))]),
-                                  const SizedBox(height: 6),
-                                  Text(solution, style: const TextStyle(fontSize: 12, height: 1.4)),
-                                ],
+                          if (!_isReattemptMode)
+                            Card(
+                              color: Colors.amber.shade50,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(children: [const Icon(Icons.lightbulb, color: Colors.amber, size: 18), const SizedBox(width: 6), Text('Explanation', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.brown))]),
+                                    const SizedBox(height: 6),
+                                    Text(solution, style: const TextStyle(fontSize: 12, height: 1.4)),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     );
