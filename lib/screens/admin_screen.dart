@@ -32,14 +32,15 @@ class _AdminScreenState extends State<AdminScreen> {
   final TextEditingController _opt3Controller = TextEditingController();
   final TextEditingController _opt4Controller = TextEditingController();
   final TextEditingController _solutionController = TextEditingController();
+  final TextEditingController _imgUrlController = TextEditingController();
   int _correctOptIndex = 0;
-  String _selectedSection = 'PART-B (General Intelligence)';
+  String _selectedSection = 'Quantitative Aptitude';
 
   final List<String> _sections = [
-    'PART-A (General Awareness)',
-    'PART-B (General Intelligence)',
-    'PART-C (Quantitative Aptitude)',
-    'PART-D (English Language)',
+    'Quantitative Aptitude',
+    'Logical Reasoning',
+    'English Language',
+    'General Awareness',
   ];
 
   final TextEditingController _jsonInputController = TextEditingController();
@@ -92,7 +93,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
       setState(() {
         _selectedTestId = docRef.id;
-        _selectedTab = 2;
+        _selectedTab = 3;
       });
 
       _testTitleController.clear();
@@ -132,6 +133,7 @@ class _AdminScreenState extends State<AdminScreen> {
         'questionNo': nextQNo,
         'section': _selectedSection,
         'questionText': _questionTextController.text.trim(),
+        'imageUrl': _imgUrlController.text.trim(),
         'options': [
           _opt1Controller.text.trim(),
           _opt2Controller.text.trim(),
@@ -149,6 +151,7 @@ class _AdminScreenState extends State<AdminScreen> {
       _opt3Controller.clear();
       _opt4Controller.clear();
       _solutionController.clear();
+      _imgUrlController.clear();
     } catch (e) {
       _showSnackbar('Error: $e');
     } finally {
@@ -177,8 +180,10 @@ class _AdminScreenState extends State<AdminScreen> {
 
         batch.set(docRef, {
           'questionNo': q['questionNo'] ?? 1,
-          'section': q['section'] ?? 'PART-B (General Intelligence)',
+          'section': q['section'] ?? 'Quantitative Aptitude',
           'questionText': q['questionText'] ?? '',
+          'imageUrl': q['imageUrl'] ?? '',
+          'optionImages': q['optionImages'] ?? [],
           'options': q['options'] ?? [],
           'correctIndex': q['correctIndex'] ?? 0,
           'solutionText': q['solutionText'] ?? 'Explanation coming soon.',
@@ -186,7 +191,7 @@ class _AdminScreenState extends State<AdminScreen> {
       }
 
       await batch.commit();
-      _showSnackbar('${jsonList.length} Questions Uploaded!', isSuccess: true);
+      _showSnackbar('${jsonList.length} Questions Uploaded with Images!', isSuccess: true);
       _jsonInputController.clear();
     } catch (e) {
       _showSnackbar('JSON Error: $e');
@@ -396,6 +401,11 @@ class _AdminScreenState extends State<AdminScreen> {
                 decoration: const InputDecoration(labelText: 'Question Text', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
+              TextField(
+                controller: _imgUrlController,
+                decoration: const InputDecoration(labelText: 'Question Image URL (Optional)', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
               TextField(controller: _opt1Controller, decoration: const InputDecoration(labelText: 'Option 1', border: OutlineInputBorder())),
               const SizedBox(height: 8),
               TextField(controller: _opt2Controller, decoration: const InputDecoration(labelText: 'Option 2', border: OutlineInputBorder())),
@@ -410,7 +420,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 items: const [
                   DropdownMenuItem(value: 0, child: Text('Option 1')),
                   DropdownMenuItem(value: 1, child: Text('Option 2')),
-                  DropdownMenuItem(value: 3, child: Text('Option 3')),
+                  DropdownMenuItem(value: 2, child: Text('Option 3')),
                   DropdownMenuItem(value: 3, child: Text('Option 4')),
                 ],
                 onChanged: (val) => setState(() => _correctOptIndex = val ?? 0),
