@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:katex_flutter/katex_flutter.dart';
 
 class SolutionsScreen extends StatefulWidget {
   final String testId;
@@ -47,35 +47,16 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
   }
 
   Widget _buildMathOrText(String content, {TextStyle? style}) {
-    String cleanContent = content
+    String formattedContent = content
         .replaceAll(r'\[', r'$')
         .replaceAll(r'\]', r'$')
         .replaceAll(r'\(', r'$')
         .replaceAll(r'\)', r'$');
 
-    if (cleanContent.contains(r'$')) {
-      List<Widget> spans = [];
-      final parts = cleanContent.split(r'$');
-      for (int i = 0; i < parts.length; i++) {
-        if (i % 2 == 1) {
-          if (parts[i].trim().isNotEmpty) {
-            spans.add(
-              Math.tex(
-                parts[i].trim(),
-                textStyle: style ?? const TextStyle(fontSize: 12),
-                onErrorFallback: (err) => Text('\$${parts[i]}\$', style: style),
-              ),
-            );
-          }
-        } else {
-          if (parts[i].isNotEmpty) {
-            spans.add(Text(parts[i], style: style));
-          }
-        }
-      }
-      return Wrap(
-        cross: WrapCrossAlignment.center,
-        children: spans,
+    if (formattedContent.contains(r'$')) {
+      return KaTeXStyle(
+        textStyle: style ?? const TextStyle(fontSize: 12, color: Colors.black87),
+        child: KaTeX(laTeXCode: Text(formattedContent)),
       );
     }
     return Text(content, style: style);
@@ -102,7 +83,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
         builder: (context, attemptSnapshot) {
           List<dynamic> savedUserAnswers = [];
           if (attemptSnapshot.hasData && attemptSnapshot.data!.exists) {
-            final attemptData = attemptSnapshot.data!.data() as Map<String, dynamic>;
+            final attemptData = attemptSnapshot.data!.data() as Map<Map<String, dynamic>>? ?? {};
             savedUserAnswers = attemptData['selectedAnswers'] ?? [];
           }
 
