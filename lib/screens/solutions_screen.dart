@@ -2,8 +2,81 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_html/flutter_html.dart';
-import 'package:flutter_html_math/flutter_html_math.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+class MathJaxView extends StatefulWidget {
+  final String content;
+  final double fontSize;
+
+  const MathJaxView({super.key, required this.content, this.fontSize = 13});
+
+  @override
+  State<MathJaxView> createState() => _MathJaxViewState();
+}
+
+class _MathJaxViewState extends State<MathJaxView> {
+  late WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.transparent)
+      ..loadHtmlString(_buildHtml(widget.content, widget.fontSize));
+  }
+
+  @override
+  void didUpdateWidget(covariant MathJaxView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.content != widget.content) {
+      _controller.loadHtmlString(_buildHtml(widget.content, widget.fontSize));
+    }
+  }
+
+  String _buildHtml(String content, double size) {
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['\$', '\$'], ['\\\\(', '\\\\)']],
+            displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
+          },
+          svg: { fontCache: 'global' }
+        };
+      </script>
+      <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      <style>
+        body {
+          font-family: 'Poppins', sans-serif;
+          font-size: ${size}px;
+          color: #212121;
+          margin: 0;
+          padding: 0;
+          background-color: transparent;
+          user-select: none;
+        }
+      </style>
+    </head>
+    <body>
+      $content
+    </body>
+    </html>
+    ''';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: widget.fontSize * 4.0,
+      child: WebViewWidget(controller: _controller),
+    );
+  }
+}
 
 class SolutionsScreen extends StatefulWidget {
   final String testId;
@@ -47,34 +120,9 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
   }
 
-  Widget _buildMathOrText(String content, {TextStyle? style}) {
+  Widget _buildMathOrText(String content, {double fontSize = 13}) {
     if (content.trim().isEmpty) return const SizedBox();
-
-    String htmlContent = content
-        .replaceAll(r'\(', r'<math>')
-        .replaceAll(r'\)', r'</math>')
-        .replaceAll(r'\[', r'<math>')
-        .replaceAll(r'\]', r'</math>')
-        .replaceAll(r'$$', r'<math>')
-        .replaceAll(r'$', r'<math>');
-
-    if (!htmlContent.contains('<math>')) {
-      htmlContent = '<math>$htmlContent</math>';
-    }
-
-    return Html(
-      data: htmlContent,
-      customCodeRender: mathCodeRender(),
-      style: {
-        "body": Style(
-          margin: Margins.zero,
-          padding: HtmlPaddings.zero,
-          fontSize: FontSize(style?.fontSize ?? 12),
-          fontWeight: style?.fontWeight ?? FontWeight.normal,
-          color: style?.color ?? Colors.black87,
-        ),
-      },
-    );
+    return MathJaxView(content: content, fontSize: fontSize);
   }
 
   @override
@@ -203,7 +251,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      _buildMathOrText(qText, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
+                                      _buildMathOrText(qText, fontSize: 13),
                                       if (qImageUrl != null && qImageUrl.trim().isNotEmpty) ...[
                                         const SizedBox(height: 10),
                                         ClipRRect(
@@ -266,7 +314,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                     title: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        _buildMathOrText(options[optIdx], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                                        _buildMathOrText(options[optIdx], fontSize: 12),
                                         if (optImg != null && optImg.trim().isNotEmpty) ...[
                                           const SizedBox(height: 6),
                                           Image.network(optImg.trim(), height: 80, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
@@ -299,7 +347,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                           ],
                                         ),
                                         const Divider(),
-                                        _buildMathOrText(solution, style: const TextStyle(fontSize: 12, height: 1.4, color: Colors.black87)),
+                                        _buildMathOrText(solution, fontSize: 12),
                                       ],
                                     ),
                                   ),
