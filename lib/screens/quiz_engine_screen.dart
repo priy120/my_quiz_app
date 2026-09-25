@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package0:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'analysis_screen.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
@@ -153,6 +154,33 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       return rawOptions.values.map((e) => _getParsedText(e.toString())).toList();
     }
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
+  }
+
+  Widget _buildMathOrText(String content, {TextStyle? style}) {
+    if (content.contains(r'$')) {
+      List<Widget> spans = [];
+      final parts = content.split(r'$');
+      for (int i = 0; i < parts.length; i++) {
+        if (i % 2 == 1) {
+          spans.add(
+            Math.tex(
+              parts[i],
+              textStyle: style ?? const TextStyle(fontSize: 13),
+              onErrorFallback: (err) => Text('\$${parts[i]}\$', style: style),
+            ),
+          );
+        } else {
+          if (parts[i].isNotEmpty) {
+            spans.add(Text(parts[i], style: style));
+          }
+        }
+      }
+      return Wrap(
+        cross: WrapCrossAlignment.center,
+        children: spans,
+      );
+    }
+    return Text(content, style: style);
   }
 
   void _onQuestionPageChanged(int index) {
@@ -612,7 +640,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                   final qData = questions[index];
                   final String displayQText = _getParsedText(qData['questionText'] ?? '');
                   final List<String> displayOptions = _extractOptions(qData['options']);
-                  final String? qImageUrl = qData['imageUrl'];
+                  final String? qImageUrl = qData['imageUrl'] ?? qData['image'];
                   final List<dynamic>? optImages = qData['optionImages'];
 
                   return SingleChildScrollView(
@@ -639,22 +667,19 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(displayQText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
-                                if (qImageUrl != null && qImageUrl.trim().isNotEmpty) ...[
+                                _buildMathOrText(displayQText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
+                                if (qImageUrl != null && qImageUrl.toString().trim().isNotEmpty) ...[
                                   const SizedBox(height: 12),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      qImageUrl.trim(),
-                                      fit: BoxFit.contain,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return const Padding(
-                                          padding: EdgeInsets.all(16.0),
-                                          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                        );
-                                      },
-                                      errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                                  Container(
+                                    constraints: const BoxConstraints(maxHeight: 250),
+                                    width: double.infinity,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        qImageUrl.toString().trim(),
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                                      ),
                                     ),
                                   ),
                                 ]
@@ -684,7 +709,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 title: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(displayOptions[optIdx], style: const TextStyle(fontSize: 13)),
+                                    _buildMathOrText(displayOptions[optIdx], style: const TextStyle(fontSize: 13)),
                                     if (optImg != null && optImg.trim().isNotEmpty) ...[
                                       const SizedBox(height: 6),
                                       ClipRRect(
