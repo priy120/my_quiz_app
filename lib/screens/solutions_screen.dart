@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 class SolutionsScreen extends StatefulWidget {
   final String testId;
@@ -43,6 +44,41 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
       return rawOptions.values.map((e) => e.toString()).toList();
     }
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
+  }
+
+  Widget _buildMathOrText(String content, {TextStyle? style}) {
+    String cleanContent = content
+        .replaceAll(r'\[', r'$')
+        .replaceAll(r'\]', r'$')
+        .replaceAll(r'\(', r'$')
+        .replaceAll(r'\)', r'$');
+
+    if (cleanContent.contains(r'$')) {
+      List<Widget> spans = [];
+      final parts = cleanContent.split(r'$');
+      for (int i = 0; i < parts.length; i++) {
+        if (i % 2 == 1) {
+          if (parts[i].trim().isNotEmpty) {
+            spans.add(
+              Math.tex(
+                parts[i].trim(),
+                textStyle: style ?? const TextStyle(fontSize: 12),
+                onErrorFallback: (err) => Text('\$${parts[i]}\$', style: style),
+              ),
+            );
+          }
+        } else {
+          if (parts[i].isNotEmpty) {
+            spans.add(Text(parts[i], style: style));
+          }
+        }
+      }
+      return Wrap(
+        cross: WrapCrossAlignment.center,
+        children: spans,
+      );
+    }
+    return Text(content, style: style);
   }
 
   @override
@@ -171,7 +207,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(qText, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
+                                      _buildMathOrText(qText, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
                                       if (qImageUrl != null && qImageUrl.trim().isNotEmpty) ...[
                                         const SizedBox(height: 10),
                                         ClipRRect(
@@ -234,7 +270,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                     title: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(options[optIdx], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                                        _buildMathOrText(options[optIdx], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                                         if (optImg != null && optImg.trim().isNotEmpty) ...[
                                           const SizedBox(height: 6),
                                           Image.network(optImg.trim(), height: 80, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
@@ -267,7 +303,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                           ],
                                         ),
                                         const Divider(),
-                                        Text(solution, style: const TextStyle(fontSize: 12, height: 1.4, color: Colors.black87)),
+                                        _buildMathOrText(solution, style: const TextStyle(fontSize: 12, height: 1.4, color: Colors.black87)),
                                       ],
                                     ),
                                   ),
