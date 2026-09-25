@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package0:google_fonts/google_fonts.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SolutionsScreen extends StatefulWidget {
   final String testId;
