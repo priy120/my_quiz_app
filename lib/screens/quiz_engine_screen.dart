@@ -527,7 +527,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+      onPopInvoked: (bool didPop) async {
         if (didPop) return;
         final shouldExit = await _showPauseDialog();
         if (shouldExit && context.mounted) {
