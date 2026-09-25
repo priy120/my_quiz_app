@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_html/flutter_html.dart';
+import 'package:flutter_html_math/flutter_html_math.dart';
 
 class SolutionsScreen extends StatefulWidget {
   final String testId;
@@ -46,37 +48,32 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
   }
 
   Widget _buildMathOrText(String content, {TextStyle? style}) {
-    String text = content;
+    if (content.trim().isEmpty) return const SizedBox();
 
-    text = text.replaceAll(r'\(', '').replaceAll(r'\)', '').replaceAll(r'\[', '').replaceAll(r'\]', '').replaceAll(r'$', '');
+    String htmlContent = content
+        .replaceAll(r'\(', r'<math>')
+        .replaceAll(r'\)', r'</math>')
+        .replaceAll(r'\[', r'<math>')
+        .replaceAll(r'\]', r'</math>')
+        .replaceAll(r'$$', r'<math>')
+        .replaceAll(r'$', r'<math>');
 
-    final fracRegex = RegExp(r'\\frac\{([^}]+)\}\{([^}]+)\}');
-    text = text.replaceAllMapped(fracRegex, (m) => '(${m[1]}/${m[2]})');
+    if (!htmlContent.contains('<math>')) {
+      htmlContent = '<math>$htmlContent</math>';
+    }
 
-    final textRegex = RegExp(r'\\text\{([^}]+)\}');
-    text = text.replaceAllMapped(textRegex, (m) => m[1] ?? '');
-
-    text = text
-        .replaceAll(r'\times', '×')
-        .replaceAll(r'\div', '÷')
-        .replaceAll(r'\pm', '±')
-        .replaceAll(r'\pi', 'π')
-        .replaceAll(r'\theta', 'θ')
-        .replaceAll(r'\sqrt', '√')
-        .replaceAll(r'\int', '∫')
-        .replaceAll(r'\infty', '∞')
-        .replaceAll(r'\implies', '⇒')
-        .replaceAll(r'\leq', '≤')
-        .replaceAll(r'\geq', '≥')
-        .replaceAll(r'\neq', '≠')
-        .replaceAll(r'\sin', 'sin')
-        .replaceAll(r'\cos', 'cos')
-        .replaceAll(r'\tan', 'tan')
-        .replaceAll(r'\deg', '°');
-
-    return Text(
-      text,
-      style: style ?? const TextStyle(fontSize: 12, color: Colors.black87),
+    return Html(
+      data: htmlContent,
+      customCodeRender: mathCodeRender(),
+      style: {
+        "body": Style(
+          margin: Margins.zero,
+          padding: HtmlPaddings.zero,
+          fontSize: FontSize(style?.fontSize ?? 12),
+          fontWeight: style?.fontWeight ?? FontWeight.normal,
+          color: style?.color ?? Colors.black87,
+        ),
+      },
     );
   }
 
