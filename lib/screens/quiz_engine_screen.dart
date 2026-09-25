@@ -156,21 +156,38 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   Widget _buildMathOrText(String content, {TextStyle? style}) {
-    String cleanText = content
-        .replaceAll(r'\[', '')
-        .replaceAll(r'\]', '')
-        .replaceAll(r'\(', '')
-        .replaceAll(r'\)', '')
-        .replaceAll(r'\\frac', '')
-        .replaceAll(r'\\sqrt', '√')
-        .replaceAll(r'\\int', '∫')
-        .replaceAll(r'\\pi', 'π')
-        .replaceAll(r'\\theta', 'θ')
-        .replaceAll(r'\\sin', 'sin')
-        .replaceAll(r'\\cos', 'cos')
-        .replaceAll(r'\\tan', 'tan');
+    String text = content;
 
-    return Text(cleanText, style: style ?? GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600));
+    text = text.replaceAll(r'\(', '').replaceAll(r'\)', '').replaceAll(r'\[', '').replaceAll(r'\]', '').replaceAll(r'$', '');
+
+    final fracRegex = RegExp(r'\\frac\{([^}]+)\}\{([^}]+)\}');
+    text = text.replaceAllMapped(fracRegex, (m) => '(${m[1]}/${m[2]})');
+
+    final textRegex = RegExp(r'\\text\{([^}]+)\}');
+    text = text.replaceAllMapped(textRegex, (m) => m[1] ?? '');
+
+    text = text
+        .replaceAll(r'\times', '×')
+        .replaceAll(r'\div', '÷')
+        .replaceAll(r'\pm', '±')
+        .replaceAll(r'\pi', 'π')
+        .replaceAll(r'\theta', 'θ')
+        .replaceAll(r'\sqrt', '√')
+        .replaceAll(r'\int', '∫')
+        .replaceAll(r'\infty', '∞')
+        .replaceAll(r'\implies', '⇒')
+        .replaceAll(r'\leq', '≤')
+        .replaceAll(r'\geq', '≥')
+        .replaceAll(r'\neq', '≠')
+        .replaceAll(r'\sin', 'sin')
+        .replaceAll(r'\cos', 'cos')
+        .replaceAll(r'\tan', 'tan')
+        .replaceAll(r'\deg', '°');
+
+    return Text(
+      text,
+      style: style ?? GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+    );
   }
 
   void _onQuestionPageChanged(int index) {
