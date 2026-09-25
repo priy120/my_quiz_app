@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_tex/flutter_tex.dart';
 
 class SolutionsScreen extends StatefulWidget {
   final String testId;
@@ -44,23 +43,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
       return rawOptions.values.map((e) => e.toString()).toList();
     }
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
-  }
-
-  Widget _buildMathOrText(String content, {double fontSize = 12}) {
-    if (content.contains(r'\(') || content.contains(r'\[') || content.contains(r'$')) {
-      return TeXView(
-        child: TeXViewDocument(
-          content,
-          style: TeXViewStyle(
-            contentColor: Colors.black87,
-            fontSize: fontSize.toInt(),
-            backgroundColor: Colors.transparent,
-          ),
-        ),
-        style: const TeXViewStyle(margin: TeXViewMargin.all(0)),
-      );
-    }
-    return Text(content, style: TextStyle(fontSize: fontSize, color: Colors.black87));
   }
 
   @override
@@ -189,7 +171,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      _buildMathOrText(qText, fontSize: 13),
+                                      Text(qText, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
                                       if (qImageUrl != null && qImageUrl.trim().isNotEmpty) ...[
                                         const SizedBox(height: 10),
                                         ClipRRect(
@@ -252,7 +234,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                     title: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        _buildMathOrText(options[optIdx], fontSize: 12),
+                                        Text(options[optIdx], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                                         if (optImg != null && optImg.trim().isNotEmpty) ...[
                                           const SizedBox(height: 6),
                                           Image.network(optImg.trim(), height: 80, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
@@ -285,7 +267,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                           ],
                                         ),
                                         const Divider(),
-                                        _buildMathOrText(solution, fontSize: 12),
+                                        Text(solution, style: const TextStyle(fontSize: 12, height: 1.4, color: Colors.black87)),
                                       ],
                                     ),
                                   ),
