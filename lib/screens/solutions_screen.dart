@@ -22,7 +22,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
   int _currentIndex = 0;
   bool _isReattemptMode = false;
   
-  // Re-attempt Mode Interactive Answers Tracking
   Map<int, int?> _userReattemptAnswers = {};
 
   @override
@@ -61,7 +60,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
       ),
       backgroundColor: const Color(0xFFF4F6FA),
       body: StreamBuilder<DocumentSnapshot>(
-        // Fetch User's Attempt Responses
         stream: user != null
             ? FirebaseFirestore.instance.collection('users').doc(user.uid).collection('test_attempts').doc(widget.testId).snapshots()
             : null,
@@ -73,7 +71,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
           }
 
           return StreamBuilder<QuerySnapshot>(
-            // Fetch Test Questions
             stream: FirebaseFirestore.instance.collection('mock_tests').doc(widget.testId).collection('questions').orderBy('questionNo').snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
@@ -82,7 +79,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
 
               return Column(
                 children: [
-                  // Re-attempt Mode Toggle Bar
                   Container(
                     color: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -106,7 +102,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                     ),
                   ),
 
-                  // Questions PageView Slider
                   Expanded(
                     child: PageView.builder(
                       controller: _pageController,
@@ -115,14 +110,14 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                       itemBuilder: (context, index) {
                         final qData = questions[index].data() as Map<String, dynamic>;
                         final String qText = qData['questionText'] ?? '';
+                        final String? qImageUrl = qData['imageUrl'];
+                        final List<dynamic>? optImages = qData['optionImages'];
                         final List<String> options = _extractOptions(qData['options']);
                         final int correctIdx = qData['correctIndex'] ?? 0;
                         final String solution = qData['solutionText'] ?? 'Detailed explanation coming soon.';
 
-                        // User Attempt Data
                         int? userSelectedIdx = (index < savedUserAnswers.length) ? savedUserAnswers[index] : null;
                         
-                        // Active Interactive Selection in Re-attempt Mode
                         if (_isReattemptMode && _userReattemptAnswers.containsKey(index)) {
                           userSelectedIdx = _userReattemptAnswers[index];
                         }
@@ -135,7 +130,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Question Header Status Row
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
@@ -169,21 +163,36 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                               ),
                               const SizedBox(height: 8),
 
-                              // Question Card Text
                               Card(
                                 elevation: 1,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 child: Padding(
                                   padding: const EdgeInsets.all(14),
-                                  child: Text(qText, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(qText, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
+                                      if (qImageUrl != null && qImageUrl.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(qImageUrl.trim(), fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                                        ),
+                                      ]
+                                    ],
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 12),
 
-                              // Options List Rendering
                               ...List.generate(options.length, (optIdx) {
                                 final isCorrectOpt = optIdx == correctIdx;
                                 final isUserSelectedOpt = optIdx == userSelectedIdx;
+
+                                String? optImg;
+                                if (optImages != null && optIdx < optImages.length && optImages[optIdx] != null) {
+                                  optImg = optImages[optIdx].toString();
+                                }
 
                                 Color cardColor = Colors.white;
                                 BorderSide border = BorderSide(color: Colors.grey.shade300);
@@ -222,14 +231,22 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                           }
                                         : null,
                                     leading: leadingIcon,
-                                    title: Text(options[optIdx], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                                    title: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(options[optIdx], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                                        if (optImg != null && optImg.trim().isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Image.network(optImg.trim(), height: 80, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                                        ]
+                                      ],
+                                    ),
                                   ),
                                 );
                               }),
 
                               const SizedBox(height: 14),
 
-                              // Detailed Solution Explanation
                               if (!_isReattemptMode)
                                 Card(
                                   color: Colors.amber.shade50,
@@ -262,7 +279,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                     ),
                   ),
 
-                  // Bottom Next & Previous Controls Bar
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     color: Colors.white,
