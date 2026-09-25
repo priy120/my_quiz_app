@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
+import 'package0:google_fonts/google_fonts.dart';
 
 class SolutionsScreen extends StatefulWidget {
   final String testId;
@@ -47,38 +46,21 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
   }
 
   Widget _buildMathOrText(String content, {TextStyle? style}) {
-    String clean = content
-        .replaceAll(r'\[', r'$')
-        .replaceAll(r'\]', r'$')
-        .replaceAll(r'\(', r'$')
-        .replaceAll(r'\)', r'$');
+    String cleanText = content
+        .replaceAll(r'\[', '')
+        .replaceAll(r'\]', '')
+        .replaceAll(r'\(', '')
+        .replaceAll(r'\)', '')
+        .replaceAll(r'\\frac', '')
+        .replaceAll(r'\\sqrt', '√')
+        .replaceAll(r'\\int', '∫')
+        .replaceAll(r'\\pi', 'π')
+        .replaceAll(r'\\theta', 'θ')
+        .replaceAll(r'\\sin', 'sin')
+        .replaceAll(r'\\cos', 'cos')
+        .replaceAll(r'\\tan', 'tan');
 
-    if (clean.contains(r'$')) {
-      List<Widget> widgets = [];
-      final parts = clean.split(r'$');
-      for (int i = 0; i < parts.length; i++) {
-        if (i % 2 == 1) {
-          if (parts[i].trim().isNotEmpty) {
-            widgets.add(
-              Math.tex(
-                parts[i].trim(),
-                textStyle: style ?? const TextStyle(fontSize: 12),
-                onErrorFallback: (err) => Text(parts[i], style: style),
-              ),
-            );
-          }
-        } else {
-          if (parts[i].isNotEmpty) {
-            widgets.add(Text(parts[i], style: style));
-          }
-        }
-      }
-      return Wrap(
-        cross: WrapCrossAlignment.center,
-        children: widgets,
-      );
-    }
-    return Text(content, style: style);
+    return Text(cleanText, style: style ?? const TextStyle(fontSize: 12, color: Colors.black87));
   }
 
   @override
