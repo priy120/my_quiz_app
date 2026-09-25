@@ -640,9 +640,23 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(displayQText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
-                                if (qImageUrl != null && qImageUrl.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Image.network(qImageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                                if (qImageUrl != null && qImageUrl.trim().isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      qImageUrl.trim(),
+                                      fit: BoxFit.contain,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return const Padding(
+                                          padding: EdgeInsets.all(16.0),
+                                          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                        );
+                                      },
+                                      errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                                    ),
+                                  ),
                                 ]
                               ],
                             ),
@@ -671,9 +685,17 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(displayOptions[optIdx], style: const TextStyle(fontSize: 13)),
-                                    if (optImg != null && optImg.isNotEmpty) ...[
+                                    if (optImg != null && optImg.trim().isNotEmpty) ...[
                                       const SizedBox(height: 6),
-                                      Image.network(optImg, height: 80, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Image.network(
+                                          optImg.trim(),
+                                          height: 90,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) => const SizedBox(),
+                                        ),
+                                      ),
                                     ]
                                   ],
                                 ),
