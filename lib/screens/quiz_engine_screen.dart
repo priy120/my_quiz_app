@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:katex_flutter/katex_flutter.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'analysis_screen.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
@@ -157,16 +157,35 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   Widget _buildMathOrText(String content, {TextStyle? style}) {
-    String formattedContent = content
+    String clean = content
         .replaceAll(r'\[', r'$')
         .replaceAll(r'\]', r'$')
         .replaceAll(r'\(', r'$')
         .replaceAll(r'\)', r'$');
 
-    if (formattedContent.contains(r'$')) {
-      return KaTeXStyle(
-        textStyle: style ?? const TextStyle(fontSize: 13, color: Colors.black87),
-        child: KaTeX(laTeXCode: Text(formattedContent)),
+    if (clean.contains(r'$')) {
+      List<Widget> widgets = [];
+      final parts = clean.split(r'$');
+      for (int i = 0; i < parts.length; i++) {
+        if (i % 2 == 1) {
+          if (parts[i].trim().isNotEmpty) {
+            widgets.add(
+              Math.tex(
+                parts[i].trim(),
+                textStyle: style ?? const TextStyle(fontSize: 13),
+                onErrorFallback: (err) => Text(parts[i], style: style),
+              ),
+            );
+          }
+        } else {
+          if (parts[i].isNotEmpty) {
+            widgets.add(Text(parts[i], style: style));
+          }
+        }
+      }
+      return Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: widgets,
       );
     }
     return Text(content, style: style);
