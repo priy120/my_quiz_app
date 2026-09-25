@@ -1,9 +1,8 @@
-import 'dart:async';
+import 'dartt:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package0:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
 import 'analysis_screen.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
@@ -154,33 +153,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       return rawOptions.values.map((e) => _getParsedText(e.toString())).toList();
     }
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
-  }
-
-  Widget _buildMathOrText(String content, {TextStyle? style}) {
-    if (content.contains(r'$')) {
-      List<Widget> spans = [];
-      final parts = content.split(r'$');
-      for (int i = 0; i < parts.length; i++) {
-        if (i % 2 == 1) {
-          spans.add(
-            Math.tex(
-              parts[i],
-              textStyle: style ?? const TextStyle(fontSize: 13),
-              onErrorFallback: (err) => Text('\$${parts[i]}\$', style: style),
-            ),
-          );
-        } else {
-          if (parts[i].isNotEmpty) {
-            spans.add(Text(parts[i], style: style));
-          }
-        }
-      }
-      return Wrap(
-        cross: WrapCrossAlignment.center,
-        children: spans,
-      );
-    }
-    return Text(content, style: style);
   }
 
   void _onQuestionPageChanged(int index) {
@@ -667,7 +639,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildMathOrText(displayQText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
+                                Text(displayQText, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
                                 if (qImageUrl != null && qImageUrl.toString().trim().isNotEmpty) ...[
                                   const SizedBox(height: 12),
                                   Container(
@@ -709,7 +681,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 title: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildMathOrText(displayOptions[optIdx], style: const TextStyle(fontSize: 13)),
+                                    Text(displayOptions[optIdx], style: const TextStyle(fontSize: 13)),
                                     if (optImg != null && optImg.trim().isNotEmpty) ...[
                                       const SizedBox(height: 6),
                                       ClipRRect(
