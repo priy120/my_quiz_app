@@ -72,7 +72,7 @@ class _MathJaxViewState extends State<MathJaxView> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: widget.fontSize * 4.0,
+      height: widget.fontSize * 3.8,
       child: WebViewWidget(controller: _controller),
     );
   }
@@ -120,9 +120,27 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
   }
 
+  bool _hasMathFormula(String text) {
+    return text.contains(r'\') ||
+        text.contains(r'$') ||
+        text.contains(r'\frac') ||
+        text.contains(r'\sqrt') ||
+        text.contains(r'\int') ||
+        text.contains(r'\pi') ||
+        text.contains(r'\theta');
+  }
+
   Widget _buildMathOrText(String content, {double fontSize = 13}) {
     if (content.trim().isEmpty) return const SizedBox();
-    return MathJaxView(content: content, fontSize: fontSize);
+
+    if (_hasMathFormula(content)) {
+      return MathJaxView(content: content, fontSize: fontSize);
+    }
+
+    return Text(
+      content,
+      style: GoogleFonts.poppins(fontSize: fontSize, fontWeight: FontWeight.normal, color: Colors.black87),
+    );
   }
 
   @override
