@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/app_updater.dart'; // Auto-Update checker import
 import 'exam_categories_screen.dart';
 import 'pdfs_screen.dart';
 import 'profile_screen.dart';
@@ -14,6 +15,16 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // App khulte hi background me auto-update check karega
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdater.checkForUpdate(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
