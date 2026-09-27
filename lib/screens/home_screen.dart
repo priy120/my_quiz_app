@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../utils/app_updater.dart'; // Auto-Update checker import
+import '../utils/app_updater.dart';
 import 'exam_categories_screen.dart';
 import 'pdfs_screen.dart';
 import 'profile_screen.dart';
@@ -19,8 +19,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    
-    // App khulte hi background me auto-update check karega
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AppUpdater.checkForUpdate(context);
     });
@@ -52,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Target Selection Banner
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -85,7 +82,6 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('Explore Categories', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 12),
 
-            // Grid of Options
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -132,180 +128,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.blue,
                   onTap: () {},
                 ),
-                // NEW: Toppers Notes Option Added
-                _buildOptionCard(
-                  title: 'Toppers Notes',
-                  subtitle: 'Handwritten Sheets',
-                  icon: Icons.menu_book_rounded,
-                  color: Colors.teal,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PdfScreen()),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF1A237E),
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        onTap: (Home screen me **"Toppers Notes"** option add karne ke liye aur app build updates sambhalne ke liye niche diye gaye steps follow karein:
-
----
-
-### Step 1: Code update (`home_screen.dart`)
-
-Apne `GridView.count` me `Toppers Notes` ka naya `_buildOptionCard` add kar dein. Humne niche poora updated code de diya hai jisme ek naya card (Teal color me) jod diya hai[cite: 1]:
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../utils/app_updater.dart'; // Auto-Update checker import
-import 'exam_categories_screen.dart';
-import 'pdfs_screen.dart';
-import 'profile_screen.dart';
-import 'my_tests_screen.dart';
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    
-    // App khulte hi background me auto-update check karega
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      AppUpdater.checkForUpdate(context);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: const Color(0xFF1A237E),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('CompeteMe Portal', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-            Text('Student Learning Dashboard', style: GoogleFonts.poppins(fontSize: 10, color: Colors.white70)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Target Selection Banner
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1A237E), Color(0xFF3949AB)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Target Selection 2026 🎯', style: GoogleFonts.poppins(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16)),
-                        const SizedBox(height: 6),
-                        Text('Attempt Standard Full Length Mock Tests & Instant Analysis', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 11)),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.verified, color: Colors.amber, size: 40),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            Text('Explore Categories', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 12),
-
-            // Grid of Options
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.2,
-              children: [
-                _buildOptionCard(
-                  title: 'Test Series',
-                  subtitle: 'Paid & Free Mocks',
-                  icon: Icons.assignment_outlined,
-                  color: Colors.orange,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ExamCategoriesScreen()),
-                    );
-                  },
-                ),
-                _buildOptionCard(
-                  title: 'Daily Quiz',
-                  subtitle: 'Timer Based Test',
-                  icon: Icons.timer_outlined,
-                  color: Colors.green,
-                  onTap: () {},
-                ),
-                _buildOptionCard(
-                  title: 'Free PDFs',
-                  subtitle: 'Class Notes & Sheets',
-                  icon: Icons.picture_as_pdf_outlined,
-                  color: Colors.purple,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PdfScreen()),
-                    );
-                  },
-                ),
-                _buildOptionCard(
-                  title: 'Current Affairs',
-                  subtitle: 'Daily & Monthly',
-                  icon: Icons.newspaper_outlined,
-                  color: Colors.blue,
-                  onTap: () {},
-                ),
-                // Naya option yahan add kiya hai
                 _buildOptionCard(
                   title: 'Toppers Notes',
                   subtitle: 'Handwritten Notes',
                   icon: Icons.menu_book_outlined,
                   color: Colors.teal,
                   onTap: () {
-                    // Navigate to Toppers Notes screen here
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PdfScreen()),
+                    );
                   },
                 ),
               ],
@@ -323,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (index == 1) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const MyTestsScreen()));
           } else if (index == 2) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const PdfScreen()));
+            Navigator.push(context, MaterialPageRoute(context, MaterialPageRoute(builder: (context) => const PdfScreen()));
           } else if (index == 3) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
           }
