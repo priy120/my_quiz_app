@@ -18,16 +18,6 @@ jobs:
         with:
           flutter-version: '3.19.6'
 
-      - name: Rebuild Fresh Clean Android Configuration
-        run: |
-          rm -rf android
-          flutter create . --platforms=android --org=com.example
-          find android/ -name "build.gradle*" -exec sed -i 's/minSdkVersion/minSdk = 21/g' {} +
-          find android/ -name "build.gradle*" -exec sed -i 's/minSdkVersion 19/minSdkVersion 21/g' {} +
-          find android/ -name "build.gradle*" -exec sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' {} +
-          echo 'android.useAndroidX=true' >> android/gradle.properties
-          echo 'android.enableJetifier=true' >> android/gradle.properties
-
       - name: Get Dependencies
         run: flutter pub get
 
