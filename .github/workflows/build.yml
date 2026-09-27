@@ -22,7 +22,7 @@ jobs:
         run: |
           rm -rf android
           flutter create . --platforms=android --org=com.example
-          find android/ -name "build.gradle*" -exec sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' {} +
+          find android/ -name "build.gradle*" -exec sed -i 's/minSdkVersion/minSdk = 21/g' {} +
           find android/ -name "build.gradle*" -exec sed -i 's/minSdkVersion 19/minSdkVersion 21/g' {} +
           find android/ -name "build.gradle*" -exec sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' {} +
           echo 'android.useAndroidX=true' >> android/gradle.properties
@@ -31,11 +31,11 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --debug
+      - name: Build Release APK
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
