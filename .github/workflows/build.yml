@@ -18,7 +18,7 @@ jobs:
         with:
           flutter-version: '3.19.6'
 
-      - name: Regenerate Android V2 Embedding & Set MinSDK 21
+      - name: Regenerate Android V2 Embedding & Set MinSDK 21 & Add Install Permission
         run: |
           rm -rf android
           flutter create . --platforms=android --org=com.example
@@ -26,6 +26,9 @@ jobs:
           sed -i 's/minSdk .*/minSdk 21/g' android/app/build.gradle
           echo 'android.useAndroidX=true' >> android/gradle.properties
           echo 'android.enableJetifier=true' >> android/gradle.properties
+          
+          # Inject OTA Install Permission into AndroidManifest
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"\/>\n    <uses-permission android:name="android.permission.INTERNET"\/>' android/app/src/main/AndroidManifest.xml
 
       - name: Get Dependencies
         run: flutter pub get
