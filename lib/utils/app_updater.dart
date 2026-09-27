@@ -141,14 +141,10 @@ class AppUpdater {
             case OtaStatus.INSTALLING:
               debugPrint("Installing APK...");
               break;
-            case OtaStatus.ALREADY_RUNNING_ERROR:
-            case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
-            case OtaStatus.INTERNAL_ERROR:
-            case OtaStatus.DOWNLOAD_ERROR:
-            case OtaStatus.CHECKSUM_ERROR:
+            default:
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Update Error: ${event.status}')),
+                  SnackBar(content: Text('Update status: ${event.status}')),
                 );
               }
               break;
