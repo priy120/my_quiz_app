@@ -9,19 +9,32 @@ class AppUpdater {
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
       int currentBuildNumber = int.parse(packageInfo.buildNumber);
 
+      debugPrint("Current Build Number: $currentBuildNumber");
+
       DocumentSnapshot configDoc = await FirebaseFirestore.instance
           .collection('app_config')
           .doc('version_info')
           .get();
 
-      if (!configDoc.exists) return;
+      if (!configDoc.exists) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Update Error: version_info document not found in Firestore!')),
+          );
+        }
+        return;
+      }
 
       final data = configDoc.data() as Map<String, dynamic>;
-      int latestBuildNumber = data['latestBuildNumber'] ?? 1;
+      
+      // Parse numbers safely whether double or int
+      int latestBuildNumber = (data['latestBuildNumber'] as num?)?.toInt() ?? 1;
       String latestVersionName = data['latestVersion'] ?? '1.0.0';
       String apkUrl = data['apkUrl'] ?? '';
       bool forceUpdate = data['forceUpdate'] ?? false;
-      String releaseNotes = data['releaseNotes'] ?? 'Nayi features aur bug fixes ke sath naya update aagaya hai!';
+      String releaseNotes = data['releaseNotes'] ?? 'Nayi features ke sath naya update aagaya hai!';
+
+      debugPrint("Latest Build in Firestore: $latestBuildNumber");
 
       if (latestBuildNumber > currentBuildNumber && apkUrl.isNotEmpty) {
         if (context.mounted) {
@@ -33,9 +46,20 @@ class AppUpdater {
             forceUpdate,
           );
         }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('App Up-To-Date! Installed: $currentBuildNumber, Server: $latestBuildNumber')),
+          );
+        }
       }
     } catch (e) {
       debugPrint("Update Check Error: $e");
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Update Fetch Error: $e')),
+        );
+      }
     }
   }
 
