@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:unity_ads_plugin/unity_ads_plugin.dart'; // Unity Ads Import
 import 'screens/splash_screen.dart';
 
 void main() async {
@@ -27,6 +28,14 @@ void main() async {
   } catch (e) {
     debugPrint("Firebase explicit init: $e");
   }
+
+  // Unity Ads Initialization
+  UnityAds.init(
+    gameId: '800382914',
+    testMode: true, // Testing phase me true rakhenge
+    onComplete: () => debugPrint('Unity Ads Initialized Successfully'),
+    onFailed: (error, message) => debugPrint('Unity Ads Init Failed: $error $message'),
+  );
 
   runApp(const CompeteMeApp());
 }
