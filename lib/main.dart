@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:unity_ads_plugin/unity_ads_plugin.dart'; // Unity Ads Import
+import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {
@@ -32,7 +32,7 @@ void main() async {
   // Unity Ads Initialization
   UnityAds.init(
     gameId: '800382914',
-    testMode: false, // Testing phase me true rakhenge
+    testMode: false,
     onComplete: () => debugPrint('Unity Ads Initialized Successfully'),
     onFailed: (error, message) => debugPrint('Unity Ads Init Failed: $error $message'),
   );
