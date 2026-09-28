@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'analysis_screen.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
@@ -112,12 +113,21 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   List<String> _sections = ['All Sections'];
   int _currentSectionIndex = 0;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _fetchQuestionsAndSavedState();
+
+    // Pre-load Interstitial Ad for instant response on test submission
+    UnityAds.load(
+      placementId: 'BP_Interstitial_Android',
+      onComplete: (placementId) => debugPrint('Quiz Interstitial Loaded: $placementId'),
+      onFailed: (placementId, error, message) =>
+          debugPrint('Quiz Interstitial Load Failed: $message'),
+    );
   }
 
   Future<void> _fetchQuestionsAndSavedState() async {
@@ -201,7 +211,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         setState(() => _secondsRemaining--);
       } else {
         _timer?.cancel();
-        _submitTest();
+        _submitTestWithAd();
       }
     });
   }
@@ -536,7 +546,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                   setState(() => _currentSectionIndex++);
                 }
               } else {
-                _submitTest();
+                _submitTestWithAd();
               }
             },
             child: const Text('Yes, Submit', style: TextStyle(color: Colors.white)),
@@ -546,7 +556,19 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     );
   }
 
-  Future<void> _submitTest() async {
+  Future<void> _submitTestWithAd() async {
+    setState(() => _isSubmitting = true);
+
+    // Show Interstitial Full Screen Ad on Test Submit
+    UnityAds.showVideoAd(
+      placementId: 'BP_Interstitial_Android',
+      onComplete: (placementId) => _processSubmitAndNavigate(),
+      onFailed: (placementId, error, message) => _processSubmitAndNavigate(),
+      onSkipped: (placementId) => _processSubmitAndNavigate(),
+    );
+  }
+
+  Future<void> _processSubmitAndNavigate() async {
     _timer?.cancel();
     int correctCount = 0;
     int wrongCount = 0;
@@ -585,6 +607,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     }
 
     if (mounted) {
+      setState(() => _isSubmitting = false);
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -643,7 +666,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               onSelected: (val) => setState(() => _currentLang = val),
               itemBuilder: (context) => [
                 const PopupMenuItem(value: 'EN', child: Text('English')),
-                const PopupMenuItem(value: 'HI', child: Text('हिंदी')),
+                const PopupMenuItem(value: 'HI', child: Text('Hindi')),
               ],
             ),
             Container(
@@ -665,191 +688,212 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             child: const Icon(Icons.grid_view, color: Colors.white),
           ),
         ),
-        body: Column(
+        body: Stack(
           children: [
-            Container(
-              color: const Color(0xFF1A237E),
-              height: 40,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _sections.length,
-                itemBuilder: (context, index) {
-                  final isSel = _currentSectionIndex == index;
-                  return GestureDetector(
-                    onTap: () {
-                      if (index != _currentSectionIndex) {
-                        _showSectionToast();
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSel ? Colors.indigo.shade900 : Colors.transparent,
-                        border: Border(bottom: BorderSide(color: isSel ? Colors.amber : Colors.transparent, width: 3)),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        _sections[index],
-                        style: TextStyle(
-                          color: isSel ? Colors.amber : Colors.white70,
-                          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: _onQuestionPageChanged,
-                itemCount: questions.length,
-                itemBuilder: (context, index) {
-                  final qData = questions[index];
-                  final String displayQText = _getParsedText(qData['questionText'] ?? '');
-                  final List<String> displayOptions = _extractOptions(qData['options']);
-                  final String? qImageUrl = qData['imageUrl'] ?? qData['image'];
-                  final List<dynamic>? optImages = qData['optionImages'];
-
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('No. ${index + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
-                            Row(
-                              children: [
-                                IconButton(icon: const Icon(Icons.bookmark_border, size: 20), onPressed: () {}),
-                                const Icon(Icons.error_outline, color: Colors.red, size: 20),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Card(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(14.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildMathOrText(displayQText, fontSize: 14),
-                                if (qImageUrl != null && qImageUrl.toString().trim().isNotEmpty) ...[
-                                  const SizedBox(height: 12),
-                                  Container(
-                                    constraints: const BoxConstraints(maxHeight: 250),
-                                    width: double.infinity,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        qImageUrl.toString().trim(),
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (context, error, stackTrace) => const SizedBox(),
-                                      ),
-                                    ),
-                                  ),
-                                ]
-                              ],
+            Column(
+              children: [
+                Container(
+                  color: const Color(0xFF1A237E),
+                  height: 40,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _sections.length,
+                    itemBuilder: (context, index) {
+                      final isSel = _currentSectionIndex == index;
+                      return GestureDetector(
+                        onTap: () {
+                          if (index != _currentSectionIndex) {
+                            _showSectionToast();
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSel ? Colors.indigo.shade900 : Colors.transparent,
+                            border: Border(bottom: BorderSide(color: isSel ? Colors.amber : Colors.transparent, width: 3)),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _sections[index],
+                            style: TextStyle(
+                              color: isSel ? Colors.amber : Colors.white70,
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 12,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Column(
-                          children: List.generate(displayOptions.length, (optIdx) {
-                            final isSelected = selectedAnswers[index] == optIdx;
-                            String? optImg;
-                            if (optImages != null && optIdx < optImages.length && optImages[optIdx] != null) {
-                              optImg = optImages[optIdx].toString();
-                            }
+                      );
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: _onQuestionPageChanged,
+                    itemCount: questions.length,
+                    itemBuilder: (context, index) {
+                      final qData = questions[index];
+                      final String displayQText = _getParsedText(qData['questionText'] ?? '');
+                      final List<String> displayOptions = _extractOptions(qData['options']);
+                      final String? qImageUrl = qData['imageUrl'] ?? qData['image'];
+                      final List<dynamic>? optImages = qData['optionImages'];
 
-                            return Card(
-                              elevation: isSelected ? 2 : 1,
-                              color: isSelected ? Colors.indigo.shade50 : Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                side: BorderSide(color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, width: isSelected ? 2 : 1),
-                              ),
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
-                                dense: true,
-                                title: Column(
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('No. ${index + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+                                Row(
+                                  children: [
+                                    IconButton(icon: const Icon(Icons.bookmark_border, size: 20), onPressed: () {}),
+                                    const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            Card(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(14.0),
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildMathOrText(displayOptions[optIdx], fontSize: 13),
-                                    if (optImg != null && optImg.trim().isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(6),
-                                        child: Image.network(
-                                          optImg.trim(),
-                                          height: 90,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (_, __, ___) => const SizedBox(),
+                                    _buildMathOrText(displayQText, fontSize: 14),
+                                    if (qImageUrl != null && qImageUrl.toString().trim().isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        constraints: const BoxConstraints(maxHeight: 250),
+                                        width: double.infinity,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(
+                                            qImageUrl.toString().trim(),
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                                          ),
                                         ),
                                       ),
                                     ]
                                   ],
                                 ),
-                                leading: Radio<int>(
-                                  value: optIdx,
-                                  groupValue: selectedAnswers[index],
-                                  activeColor: const Color(0xFF1A237E),
-                                  onChanged: (val) => _selectOption(optIdx),
-                                ),
-                                onTap: () => _selectOption(optIdx),
                               ),
-                            );
-                          }),
+                            ),
+                            const SizedBox(height: 12),
+                            Column(
+                              children: List.generate(displayOptions.length, (optIdx) {
+                                final isSelected = selectedAnswers[index] == optIdx;
+                                String? optImg;
+                                if (optImages != null && optIdx < optImages.length && optImages[optIdx] != null) {
+                                  optImg = optImages[optIdx].toString();
+                                }
+
+                                return Card(
+                                  elevation: isSelected ? 2 : 1,
+                                  color: isSelected ? Colors.indigo.shade50 : Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: BorderSide(color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                                  ),
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: ListTile(
+                                    dense: true,
+                                    title: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        _buildMathOrText(displayOptions[optIdx], fontSize: 13),
+                                        if (optImg != null && optImg.trim().isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Image.network(
+                                              optImg.trim(),
+                                              height: 90,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (_, __, ___) => const SizedBox(),
+                                            ),
+                                          ),
+                                        ]
+                                      ],
+                                    ),
+                                    leading: Radio<int>(
+                                      value: optIdx,
+                                      groupValue: selectedAnswers[index],
+                                      activeColor: const Color(0xFF1A237E),
+                                      onChanged: (val) => _selectOption(optIdx),
+                                    ),
+                                    onTap: () => _selectOption(optIdx),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                      );
+                    },
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                  decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300))),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+                          onPressed: currentQuestionIndex > 0 ? () => _navigateToQuestion(currentQuestionIndex - 1) : null,
+                          child: const Text('Previous Question', style: TextStyle(fontSize: 10)),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.purple), padding: EdgeInsets.zero),
+                          onPressed: _markForReviewAndNext,
+                          child: const Text('Mark & Save For Review', style: TextStyle(fontSize: 9, color: Colors.purple, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), padding: EdgeInsets.zero),
+                          onPressed: _clearResponse,
+                          child: const Text('Clear Response', style: TextStyle(fontSize: 9, color: Colors.red, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E), padding: EdgeInsets.zero),
+                          onPressed: _saveAndNext,
+                          child: const Text('Save & Next', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300))),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
-                      onPressed: currentQuestionIndex > 0 ? () => _navigateToQuestion(currentQuestionIndex - 1) : null,
-                      child: const Text('Previous Question', style: TextStyle(fontSize: 10)),
-                    ),
+            if (_isSubmitting)
+              Container(
+                color: Colors.black54,
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: Colors.white),
+                      SizedBox(height: 12),
+                      Text(
+                        "Submitting Test & Loading Analysis...",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.purple), padding: EdgeInsets.zero),
-                      onPressed: _markForReviewAndNext,
-                      child: const Text('Mark & Save For Review', style: TextStyle(fontSize: 9, color: Colors.purple, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), padding: EdgeInsets.zero),
-                      onPressed: _clearResponse,
-                      child: const Text('Clear Response', style: TextStyle(fontSize: 9, color: Colors.red, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E), padding: EdgeInsets.zero),
-                      onPressed: _saveAndNext,
-                      child: const Text('Save & Next', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
           ],
         ),
       ),
