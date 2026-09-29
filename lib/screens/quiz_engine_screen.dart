@@ -608,7 +608,10 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     if (mounted) {
       setState(() => _isSubmitting = false);
-      Navigator.pushAndRemoveUntil(
+      
+      // ✅ NAVIGATION FIX: pushAndRemoveUntil ki jagah pushReplacement use kiya hai
+      // Isse TestSeriesScreen/SubCategoriesScreen stack me safe rahegi
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => AnalysisScreen(
@@ -621,7 +624,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             unattemptedCount: unattemptedCount,
           ),
         ),
-        (route) => route.isFirst,
       );
     }
   }
