@@ -587,7 +587,21 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // 1. Save Test Attempt Result
+      // Fetch Previous Attempt Count
+      final existingDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('test_attempts')
+          .doc(widget.testId)
+          .get();
+
+      int newAttemptCount = 1;
+      if (existingDoc.exists) {
+        int currentAttempts = existingDoc.data()?['attemptCount'] ?? 1;
+        newAttemptCount = currentAttempts + 1;
+      }
+
+      // Save Latest Attempt
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -596,15 +610,16 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           .set({
         'testId': widget.testId,
         'testTitle': widget.testTitle,
-        'score': '${totalScore.toStringAsFixed(1)} / ${questions.length * 2}',
+        'score': totalScore,
         'correctCount': correctCount,
         'wrongCount': wrongCount,
         'selectedAnswers': selectedAnswers,
+        'attemptCount': newAttemptCount,
         'status': 'Completed',
         'attemptedAt': FieldValue.serverTimestamp(),
       });
 
-      // 2. 🔥 FIX: Delete from paused_tests so card state switches from RESUME to COMPLETED
+      // Clear Paused Entry
       try {
         await FirebaseFirestore.instance
             .collection('users')
@@ -613,7 +628,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             .doc(widget.testId)
             .delete();
       } catch (e) {
-        debugPrint('Error deleting paused test: $e');
+        debugPrint('Error removing paused test: $e');
       }
     }
 
