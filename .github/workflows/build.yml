@@ -9,8 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -22,6 +21,19 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
+
+      - name: Regenerate Android V2 Embedding & Set MinSDK 21 & Add Install Permission
+        run: |
+          rm -rf android
+          flutter create . --platforms=android --org=com.example
+          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle
+          sed -i 's/minSdk .*/minSdk 21/g' android/app/build.gradle
+          echo 'android.useAndroidX=true' >> android/gradle.properties
+          echo 'android.enableJetifier=true' >> android/gradle.properties
+
+      - name: Inject OTA Install Permission into AndroidManifest
+        run: |
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n' android/app/src/main/AndroidManifest.xml
 
       - name: Get Dependencies
         run: flutter pub get
