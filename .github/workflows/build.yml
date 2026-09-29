@@ -23,9 +23,6 @@ jobs:
         with:
           flutter-version: '3.19.6'
 
-      - name: Ensure Android V2 Embedding
-        run: flutter create . --platforms=android
-
       - name: Get Dependencies
         run: flutter pub get
 
