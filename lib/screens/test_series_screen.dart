@@ -39,21 +39,21 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
     super.dispose();
   }
 
-  void _onTestStartOrResume(String testId, String testTitle, {bool isResume = false}) {
+  void _onTestStartOrResume(String testId, String testTitle, {bool isResume = false, bool isReattempt = false}) {
     if (widget.categoryName.toUpperCase() == 'SSC') {
-      _showInterfaceSelectionDialog(testId, testTitle, isResume: isResume);
+      _showInterfaceSelectionDialog(testId, testTitle, isResume: isResume, isReattempt: isReattempt);
     } else {
-      _navigateToTest(testId, testTitle, isResume: isResume);
+      _navigateToTest(testId, testTitle, isResume: isResume, isReattempt: isReattempt);
     }
   }
 
-  void _showInterfaceSelectionDialog(String testId, String testTitle, {bool isResume = false}) {
+  void _showInterfaceSelectionDialog(String testId, String testTitle, {bool isResume = false, bool isReattempt = false}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Test Interface Selection',
+          'Select Test Interface',
           textAlign: TextAlign.center,
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15),
         ),
@@ -69,7 +69,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: () {
                 Navigator.pop(context);
-                _navigateToTest(testId, testTitle, isResume: isResume);
+                _navigateToTest(testId, testTitle, isResume: isResume, isReattempt: isReattempt);
               },
             ),
             const SizedBox(height: 8),
@@ -82,7 +82,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: () {
                 Navigator.pop(context);
-                _navigateToTest(testId, testTitle, isResume: isResume);
+                _navigateToTest(testId, testTitle, isResume: isResume, isReattempt: isReattempt);
               },
             ),
           ],
@@ -91,15 +91,15 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
     );
   }
 
-  void _navigateToTest(String testId, String testTitle, {bool isResume = false}) {
-    if (isResume) {
+  void _navigateToTest(String testId, String testTitle, {bool isResume = false, bool isReattempt = false}) {
+    if (isResume || isReattempt) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => QuizEngineScreen(
             testId: testId,
             testTitle: testTitle,
-            isReattempt: false,
+            isReattempt: isReattempt,
           ),
         ),
       );
@@ -119,11 +119,11 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final bool isSSC = widget.categoryName.toUpperCase() == 'SSC';
-    final Color headerColor = isSSC ? const Color(0xFFC62828) : const Color(0xFF1A237E);
+    final Color primaryColor = isSSC ? const Color(0xFFC62828) : const Color(0xFF1A237E);
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: headerColor,
+        backgroundColor: primaryColor,
         elevation: 0,
         centerTitle: false,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -134,7 +134,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.amber,
-          indicatorWeight: 3,
+          indicatorWeight: 3.5,
           labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13),
           unselectedLabelStyle: GoogleFonts.poppins(fontSize: 13),
           labelColor: Colors.white,
@@ -148,19 +148,27 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
-          final filteredDocs = snapshot.data!.docs.where((doc) {
+          // 1. Filter by Category & Subcategory
+          var filteredDocs = snapshot.data!.docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final docCat = (data['category'] ?? '').toString().trim().toUpperCase();
             final docSubCat = (data['subCategory'] ?? '').toString().trim();
             return docCat == widget.categoryName.trim().toUpperCase() && docSubCat == widget.subCategoryName.trim();
           }).toList();
 
+          // 2. 🔥 Natural Serial Sorting (Test 01, Test 02, Test 03...)
+          filteredDocs.sort((a, b) {
+            final titleA = (a.data() as Map<String, dynamic>)['title'] ?? '';
+            final titleB = (b.data() as Map<String, dynamic>)['title'] ?? '';
+            return titleA.toString().compareTo(titleB.toString());
+          });
+
           return Column(
             children: [
-              // Top Segment Control Tabs (Full Tests vs Sectional Tests)
+              // Custom Filter Segment
               Container(
                 color: Colors.white,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
@@ -171,10 +179,11 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _selectedSectionFilter = 'Full Tests'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
-                              color: _selectedSectionFilter == 'Full Tests' ? headerColor : Colors.transparent,
+                              color: _selectedSectionFilter == 'Full Tests' ? primaryColor : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             alignment: Alignment.center,
@@ -192,10 +201,11 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _selectedSectionFilter = 'Sectional Tests'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
-                              color: _selectedSectionFilter == 'Sectional Tests' ? headerColor : Colors.transparent,
+                              color: _selectedSectionFilter == 'Sectional Tests' ? primaryColor : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             alignment: Alignment.center,
@@ -234,7 +244,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                           ),
                         ),
                         selected: isSel,
-                        selectedColor: headerColor,
+                        selectedColor: primaryColor,
                         backgroundColor: Colors.grey.shade100,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         onSelected: (val) => setState(() => _selectedSubFilter = filter),
@@ -248,20 +258,20 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildFilteredTestList(filteredDocs, 'Mocks Tests'),
-                    _buildFilteredTestList(filteredDocs, 'Previous Years'),
+                    _buildFilteredTestList(filteredDocs, 'Mocks Tests', primaryColor),
+                    _buildFilteredTestList(filteredDocs, 'Previous Years', primaryColor),
                   ],
                 ),
               ),
 
-              // Sticky Upgrade/Pass Bar
+              // Bottom Buy Pass CTA
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A237E),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, -2))
+                    BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, -2))
                   ],
                 ),
                 child: SafeArea(
@@ -272,8 +282,8 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('Unlock All Test Series', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                            Text('Get unlimited access to all tests', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 10)),
+                            Text('Unlock Full Test Series', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text('Access all mock tests & detailed solutions', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 10)),
                           ],
                         ),
                       ),
@@ -289,7 +299,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                             MaterialPageRoute(builder: (context) => const PlansScreen()),
                           );
                         },
-                        child: Text('Buy Pass', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                        child: Text('BUY PASS', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -302,7 +312,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildFilteredTestList(List<QueryDocumentSnapshot> docs, String tabType) {
+  Widget _buildFilteredTestList(List<QueryDocumentSnapshot> docs, String tabType, Color primaryColor) {
     final user = FirebaseAuth.instance.currentUser;
     final filteredList = docs.where((doc) {
       final data = doc.data() as Map<String, dynamic>;
@@ -321,7 +331,7 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
 
     if (filteredList.isEmpty) {
       return Center(
-        child: Text("No $tabType found.", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13)),
+        child: Text("No $tabType available right now.", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13)),
       );
     }
 
@@ -332,14 +342,25 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
         final doc = filteredList[index];
         final data = doc.data() as Map<String, dynamic>;
         final testId = doc.id;
-        final title = data['title'] ?? 'Mock Test';
+        final title = data['title'] ?? 'Mock Test ${index + 1}';
         final duration = data['durationMinutes'] ?? 60;
-        final marks = data['totalMarks'] ?? 200;
+        final marks = data['totalMarks'] ?? (data['totalQuestions'] != null ? data['totalQuestions'] * 2 : 200);
         final totalQ = data['totalQuestions'] ?? 100;
         final isFree = data['isFree'] ?? false;
+        final double cutOff = (data['cutoffMarks'] ?? 40.0).toDouble();
 
         if (user == null) {
-          return _buildTestCard(testId, title, duration, marks, totalQ, isFree, 'start');
+          return _buildTestCard(
+            testId: testId,
+            title: title,
+            duration: duration,
+            marks: marks,
+            totalQ: totalQ,
+            isFree: isFree,
+            state: 'start',
+            primaryColor: primaryColor,
+            cutOff: cutOff,
+          );
         }
 
         return StreamBuilder<DocumentSnapshot>(
@@ -351,8 +372,12 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
               stream: FirebaseFirestore.instance.collection('users').doc(user.uid).collection('test_attempts').doc(testId).snapshots(),
               builder: (context, attemptSnap) {
                 final isCompleted = attemptSnap.hasData && attemptSnap.data!.exists;
+                
+                Map<String, dynamic>? attemptData;
+                if (isCompleted) {
+                  attemptData = attemptSnap.data!.data() as Map<String, dynamic>?;
+                }
 
-                // Priority: Completed takes precedence over lingering Paused state
                 String state = 'start';
                 if (isCompleted) {
                   state = 'completed';
@@ -360,7 +385,18 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
                   state = 'resume';
                 }
 
-                return _buildTestCard(testId, title, duration, marks, totalQ, isFree, state);
+                return _buildTestCard(
+                  testId: testId,
+                  title: title,
+                  duration: duration,
+                  marks: marks,
+                  totalQ: totalQ,
+                  isFree: isFree,
+                  state: state,
+                  primaryColor: primaryColor,
+                  attemptData: attemptData,
+                  cutOff: cutOff,
+                );
               },
             );
           },
@@ -369,180 +405,253 @@ class _TestSeriesScreenState extends State<TestSeriesScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildTestCard(String testId, String title, int duration, int marks, int totalQ, bool isFree, String state) {
+  Widget _buildTestCard({
+    required String testId,
+    required String title,
+    required int duration,
+    required int marks,
+    required int totalQ,
+    required bool isFree,
+    required String state,
+    required Color primaryColor,
+    required double cutOff,
+    Map<String, dynamic>? attemptData,
+  }) {
+    double userScore = 0.0;
+    int attemptCount = 1;
+    bool isPassed = false;
+
+    if (attemptData != null) {
+      attemptCount = attemptData['attemptCount'] ?? 1;
+      var rawScore = attemptData['score'];
+      if (rawScore is num) {
+        userScore = rawScore.toDouble();
+      } else if (rawScore is String && rawScore.contains('/')) {
+        userScore = double.tryParse(rawScore.split('/')[0].trim()) ?? 0.0;
+      }
+      isPassed = userScore >= cutOff;
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: state == 'completed'
+              ? (isPassed ? Colors.green.shade200 : Colors.red.shade200)
+              : Colors.grey.shade200,
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A237E).withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.assignment, color: Color(0xFF1A237E), size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isFree ? Colors.green.shade50 : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  isFree ? 'FREE' : 'PAID',
-                  style: TextStyle(
-                    color: isFree ? Colors.green.shade700 : Colors.red.shade700,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(Icons.help_outline, size: 13, color: Colors.grey.shade600),
-              const SizedBox(width: 4),
-              Text('$totalQ Que', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
-              const SizedBox(width: 12),
-              Icon(Icons.military_tech_outlined, size: 13, color: Colors.grey.shade600),
-              const SizedBox(width: 4),
-              Text('$marks Marks', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
-              const SizedBox(width: 12),
-              Icon(Icons.timer_outlined, size: 13, color: Colors.grey.shade600),
-              const SizedBox(width: 4),
-              Text('$duration Min', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1),
-          const SizedBox(height: 10),
-
-          // Action Buttons Based on Attempt State
-          if (state == 'resume')
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E88E5),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () => _onTestStartOrResume(testId, title, isResume: true),
-                icon: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
-                label: const Text('RESUME TEST', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-              ),
-            )
-          else if (state == 'completed')
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Title + Status Badge
             Row(
               children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.assignment_outlined, color: primaryColor, size: 20),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      side: const BorderSide(color: Color(0xFF1A237E)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => QuizEngineScreen(testId: testId, testTitle: title, isReattempt: true),
-                      ),
-                    ),
-                    child: const Text('Re-Attempt', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1A237E))),
+                  child: Text(
+                    title,
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
                   ),
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A237E),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SolutionsScreen(testId: testId, testTitle: title),
-                      ),
-                    ),
-                    child: const Text('Solution', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isFree ? Colors.green.shade50 : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: isFree ? Colors.green.shade200 : Colors.red.shade200),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD32F2F),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  child: Text(
+                    isFree ? 'FREE' : 'PAID',
+                    style: TextStyle(
+                      color: isFree ? Colors.green.shade700 : Colors.red.shade700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
                     ),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AnalysisScreen(
-                          testId: testId,
-                          testTitle: title,
-                          score: 0,
-                          totalQuestions: totalQ,
-                          correctCount: 0,
-                          wrongCount: 0,
-                          unattemptedCount: totalQ,
-                        ),
-                      ),
-                    ),
-                    child: const Text('Analysis', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
-            )
-          else
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A237E),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            const SizedBox(height: 10),
+
+            // Metadata Chips
+            Row(
+              children: [
+                Icon(Icons.help_outline, size: 13, color: Colors.grey.shade600),
+                const SizedBox(width: 3),
+                Text('$totalQ Que', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                const SizedBox(width: 12),
+                Icon(Icons.military_tech_outlined, size: 13, color: Colors.grey.shade600),
+                const SizedBox(width: 3),
+                Text('$marks Marks', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                const SizedBox(width: 12),
+                Icon(Icons.timer_outlined, size: 13, color: Colors.grey.shade600),
+                const SizedBox(width: 3),
+                Text('$duration Min', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+              ],
+            ),
+
+            // 🔥 Score & Cutoff Analysis Summary Badge (For Completed Tests)
+            if (state == 'completed') ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isPassed ? Colors.green.shade50 : Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: isPassed ? Colors.green.shade200 : Colors.red.shade200),
                 ),
-                onPressed: () {
-                  if (!isFree) {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const PlansScreen()));
-                  } else {
-                    _onTestStartOrResume(testId, title, isResume: false);
-                  }
-                },
-                child: Text(
-                  !isFree ? 'Unlock Pass' : 'Start Test',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          isPassed ? Icons.check_circle : Icons.cancel,
+                          color: isPassed ? Colors.green.shade700 : Colors.red.shade700,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isPassed ? 'Cutoff Cleared 🎉' : 'Cutoff Not Cleared ❌',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            color: isPassed ? Colors.green.shade800 : Colors.red.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Score: ${userScore.toStringAsFixed(1)} / $marks  (Attempt $attemptCount)',
+                      style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.black87),
+                    ),
+                  ],
                 ),
               ),
-            ),
-        ],
+            ],
+
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+
+            // Action Buttons
+            if (state == 'resume')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E88E5),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => _onTestStartOrResume(testId, title, isResume: true),
+                  icon: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
+                  label: const Text('RESUME TEST', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              )
+            else if (state == 'completed')
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        side: BorderSide(color: primaryColor),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => _onTestStartOrResume(testId, title, isReattempt: true),
+                      child: Text('Re-Attempt', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryColor)),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SolutionsScreen(testId: testId, testTitle: title),
+                        ),
+                      ),
+                      child: const Text('Solution', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD32F2F),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AnalysisScreen(
+                            testId: testId,
+                            testTitle: title,
+                            score: userScore,
+                            totalQuestions: totalQ,
+                            correctCount: 0,
+                            wrongCount: 0,
+                            unattemptedCount: totalQ,
+                          ),
+                        ),
+                      ),
+                      child: const Text('Analysis', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    if (!isFree) {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const PlansScreen()));
+                    } else {
+                      _onTestStartOrResume(testId, title, isResume: false);
+                    }
+                  },
+                  child: Text(
+                    !isFree ? 'Unlock Pass' : 'Start Test',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
