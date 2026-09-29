@@ -1,11 +1,16 @@
-name: Build Android APK
-on: [push]
+name: Build Android Release APK
+
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -14,27 +19,15 @@ jobs:
           java-version: '17'
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: actions/subosito/flutter-action@v2
         with:
           flutter-version: '3.19.6'
-
-      - name: Regenerate Android V2 Embedding & Set MinSDK 21 & Add Install Permission
-        run: |
-          rm -rf android
-          flutter create . --platforms=android --org=com.example
-          sed -i 's/minSdkVersion .*/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/minSdk .*/minSdk 21/g' android/app/build.gradle
-          echo 'android.useAndroidX=true' >> android/gradle.properties
-          echo 'android.enableJetifier=true' >> android/gradle.properties
-          
-          # Inject OTA Install Permission into AndroidManifest
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"\/>\n    <uses-permission android:name="android.permission.INTERNET"\/>' android/app/src/main/AndroidManifest.xml
 
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Build Release APK
-        run: flutter build apk --release --no-tree-shake-icons
+      - name: Build Release Universal APK
+        run: flutter build apk --release --no-tree-shake-icons --no-split-per-abi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
