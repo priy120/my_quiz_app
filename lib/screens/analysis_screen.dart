@@ -84,9 +84,7 @@ class AnalysisScreen extends StatelessWidget {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => TestSeriesScreen(
-            title: testTitle,
-          ),
+          builder: (context) => const TestSeriesScreen(),
         ),
       );
     }
