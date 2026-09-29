@@ -23,11 +23,11 @@ jobs:
         with:
           flutter-version: '3.19.6'
 
+      - name: Ensure Android V2 Embedding
+        run: flutter create . --platforms=android
+
       - name: Get Dependencies
         run: flutter pub get
-
-      - name: Ensure Android V2 Embedding
-        run: flutter config --enable-android
 
       - name: Build Release Universal APK
         run: flutter build apk --release --no-tree-shake-icons --no-split-per-abi
