@@ -121,7 +121,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     _pageController = PageController(initialPage: 0);
     _fetchQuestionsAndSavedState();
 
-    // Pre-load Interstitial Ad for instant response on test submission
     UnityAds.load(
       placementId: 'BP_Interstitial_Android',
       onComplete: (placementId) => debugPrint('Quiz Interstitial Loaded: $placementId'),
@@ -559,7 +558,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   Future<void> _submitTestWithAd() async {
     setState(() => _isSubmitting = true);
 
-    // Show Interstitial Full Screen Ad on Test Submit
     UnityAds.showVideoAd(
       placementId: 'BP_Interstitial_Android',
       onComplete: (placementId) => _processSubmitAndNavigate(),
@@ -589,6 +587,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // 1. Save Test Attempt Result
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -604,13 +603,23 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         'status': 'Completed',
         'attemptedAt': FieldValue.serverTimestamp(),
       });
+
+      // 2. 🔥 FIX: Delete from paused_tests so card state switches from RESUME to COMPLETED
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('paused_tests')
+            .doc(widget.testId)
+            .delete();
+      } catch (e) {
+        debugPrint('Error deleting paused test: $e');
+      }
     }
 
     if (mounted) {
       setState(() => _isSubmitting = false);
-      
-      // ✅ NAVIGATION FIX: pushAndRemoveUntil ki jagah pushReplacement use kiya hai
-      // Isse TestSeriesScreen/SubCategoriesScreen stack me safe rahegi
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
