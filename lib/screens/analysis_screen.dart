@@ -76,6 +76,7 @@ class AnalysisScreen extends StatelessWidget {
     );
   }
 
+  // Back Button Navigation Fix
   void _handleBackNavigation(BuildContext context) {
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
@@ -84,8 +85,7 @@ class AnalysisScreen extends StatelessWidget {
         context,
         MaterialPageRoute(
           builder: (context) => TestSeriesScreen(
-            categoryId: '',
-            categoryTitle: testTitle,
+            title: testTitle,
           ),
         ),
       );
