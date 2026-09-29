@@ -5,9 +5,6 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-val flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
-val flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0"
-
 android {
     namespace = "com.competeme.quizapp"
     compileSdk = 34
@@ -26,16 +23,14 @@ android {
         applicationId = "com.competeme.quizapp"
         minSdk = 21
         targetSdk = 34
-        versionCode = flutterVersionCode.toInt()
-        versionName = flutterVersionName
+        versionCode = 1
+        versionName = "1.0"
         multiDexEnabled = true
     }
 
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = false
-            isShrinkResources = false
         }
     }
 }
