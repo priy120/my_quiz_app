@@ -200,6 +200,33 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  Future<void> _deleteStudyGroup(String groupCode) async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Study Group?"),
+        content: Text("Are you sure you want to delete group code: $groupCode?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirm) {
+      try {
+        await FirebaseFirestore.instance.collection('study_groups').doc(groupCode).delete();
+        _showSnackbar('Group $groupCode deleted successfully!', isSuccess: true);
+      } catch (e) {
+        _showSnackbar('Error deleting group: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -220,6 +247,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _buildTabBtn('1. Create Test', 1),
                   _buildTabBtn('2. Single Question', 2),
                   _buildTabBtn('3. JSON Batch', 3),
+                  _buildTabBtn('4. Study Groups', 4),
                 ],
               ),
             ),
@@ -441,7 +469,7 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
         ),
       );
-    } else {
+    } else if (_selectedTab == 3) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -466,6 +494,66 @@ class _AdminScreenState extends State<AdminScreen> {
             ],
           ),
         ),
+      );
+    } else {
+      return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('study_groups').snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+          var docs = snapshot.data!.docs;
+
+          if (docs.isEmpty) {
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Center(
+                  child: Text("No Active Study Groups Found", style: GoogleFonts.poppins(color: Colors.grey)),
+                ),
+              ),
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+                child: Text(
+                  'Active Study Groups (${docs.length})',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  var groupData = docs[index].data() as Map<String, dynamic>;
+                  String code = groupData['groupCode'] ?? docs[index].id;
+                  String name = groupData['groupName'] ?? 'No Name';
+                  List members = groupData['members'] ?? [];
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: const Color(0xFF1A237E),
+                        child: Text("${members.length}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Text("Code: $code | Members: ${members.length}", style: const TextStyle(fontSize: 11)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        onPressed: () => _deleteStudyGroup(code),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          );
+        },
       );
     }
   }
