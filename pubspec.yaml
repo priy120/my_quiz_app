@@ -33,6 +33,9 @@ dependencies:
   # UI Design
   google_fonts: ^6.1.0
   cupertino_icons: ^1.0.6
+  
+  share_plus: ^10.0.0
+  path_provider: ^2.1.0
 
 dev_dependencies:
   flutter_test:
