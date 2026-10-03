@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/group_service.dart';
 import 'solutions_screen.dart';
 import 'test_series_screen.dart';
 
-class AnalysisScreen extends StatelessWidget {
+class AnalysisScreen extends StatefulWidget {
   final String testId;
   final String testTitle;
   final double score;
@@ -11,6 +12,7 @@ class AnalysisScreen extends StatelessWidget {
   final int correctCount;
   final int wrongCount;
   final int unattemptedCount;
+  final String? groupCode; // Group Support Added
 
   const AnalysisScreen({
     super.key,
@@ -21,16 +23,35 @@ class AnalysisScreen extends StatelessWidget {
     required this.correctCount,
     required this.wrongCount,
     required this.unattemptedCount,
+    this.groupCode,
   });
 
+  @override
+  State<AnalysisScreen> createState() => _AnalysisScreenState();
+}
+
+class _AnalysisScreenState extends State<AnalysisScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _syncGroupScore();
+  }
+
+  // Group Score Realtime Sync Logic
+  Future<void> _syncGroupScore() async {
+    if (widget.groupCode != null && widget.groupCode!.isNotEmpty) {
+      await GroupService().updateGroupScore(widget.groupCode!, widget.score);
+    }
+  }
+
   void _handleSolutionClick(BuildContext context) {
-    if (testTitle.toUpperCase().contains('SSC')) {
+    if (widget.testTitle.toUpperCase().contains('SSC')) {
       _showSolutionInterfaceDialog(context);
     } else {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => SolutionsScreen(testId: testId, testTitle: testTitle),
+          builder: (context) => SolutionsScreen(testId: widget.testId, testTitle: widget.testTitle),
         ),
       );
     }
@@ -57,7 +78,7 @@ class AnalysisScreen extends StatelessWidget {
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => SolutionsScreen(testId: testId, testTitle: testTitle)));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => SolutionsScreen(testId: widget.testId, testTitle: widget.testTitle)));
               },
             ),
             const SizedBox(height: 10),
@@ -67,7 +88,7 @@ class AnalysisScreen extends StatelessWidget {
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => SolutionsScreen(testId: testId, testTitle: testTitle)));
+                Navigator.push(context, MaterialPageRoute(builder: (context) => SolutionsScreen(testId: widget.testId, testTitle: widget.testTitle)));
               },
             ),
           ],
@@ -76,7 +97,6 @@ class AnalysisScreen extends StatelessWidget {
     );
   }
 
-  // Back Button Navigation Fix
   void _handleBackNavigation(BuildContext context) {
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
@@ -92,8 +112,8 @@ class AnalysisScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int attempted = correctCount + wrongCount;
-    final double accuracy = attempted > 0 ? (correctCount / attempted) * 100 : 0.0;
+    final int attempted = widget.correctCount + widget.wrongCount;
+    final double accuracy = attempted > 0 ? (widget.correctCount / attempted) * 100 : 0.0;
 
     return PopScope(
       canPop: false,
@@ -196,10 +216,10 @@ class AnalysisScreen extends StatelessWidget {
                 mainAxisSpacing: 10,
                 children: [
                   _buildMetricCard('Rank', '1/1', Icons.emoji_events, Colors.amber),
-                  _buildMetricCard('Score', '${score.toStringAsFixed(2)} / ${totalQuestions * 2}', Icons.score, Colors.red),
+                  _buildMetricCard('Score', '${widget.score.toStringAsFixed(2)} / ${widget.totalQuestions * 2}', Icons.score, Colors.red),
                   _buildMetricCard('Accuracy', '${accuracy.toStringAsFixed(2)}%', Icons.track_changes, Colors.green),
                   _buildMetricCard('Percentile', '100%', Icons.pie_chart, Colors.orange),
-                  _buildMetricCard('Attempted', '$attempted / $totalQuestions', Icons.help_outline, Colors.blue),
+                  _buildMetricCard('Attempted', '$attempted / ${widget.totalQuestions}', Icons.help_outline, Colors.blue),
                   _buildMetricCard('Time Spent', '0.13 / 60.0', Icons.timer, Colors.purple),
                 ],
               ),
@@ -223,7 +243,7 @@ class AnalysisScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('Score', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-                          Text('${score.toStringAsFixed(1)} / ${(totalQuestions * 2).toDouble()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text('${widget.score.toStringAsFixed(1)} / ${(widget.totalQuestions * 2).toDouble()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -231,7 +251,7 @@ class AnalysisScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('Attempted', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-                          Text('$attempted / $totalQuestions', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text('$attempted / ${widget.totalQuestions}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: 6),
