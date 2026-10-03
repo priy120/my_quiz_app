@@ -11,7 +11,7 @@ class PosterHelper {
       RenderRepaintBoundary boundary =
           globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      var byteData = await image.toByteData(format: ui.ImageByteQuality.png);
+      var byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       var pngBytes = byteData!.buffer.asUint8List();
 
       final tempDir = await getTemporaryDirectory();
