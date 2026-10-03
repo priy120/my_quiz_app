@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import '../utils/app_updater.dart';
 import 'exam_categories_screen.dart';
+import 'group_study_screen.dart';
 import 'pdfs_screen.dart';
 import 'profile_screen.dart';
 import 'my_tests_screen.dart';
@@ -132,6 +133,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const ExamCategoriesScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildOptionCard(
+                  title: 'Study Group',
+                  subtitle: 'Library Leaderboard',
+                  icon: Icons.groups_outlined,
+                  color: Colors.indigo,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const GroupStudyScreen(),
                       ),
                     );
                   },
