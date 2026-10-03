@@ -87,12 +87,14 @@ class QuizEngineScreen extends StatefulWidget {
   final String testId;
   final String testTitle;
   final bool isReattempt;
+  final String? groupCode; // Group Support Added
 
   const QuizEngineScreen({
     super.key,
     this.testId = 'default_test',
     this.testTitle = 'CompeteMe Live Mock Test',
     this.isReattempt = false,
+    this.groupCode,
   });
 
   @override
@@ -646,6 +648,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             correctCount: correctCount,
             wrongCount: wrongCount,
             unattemptedCount: unattemptedCount,
+            groupCode: widget.groupCode, // Pass Group Code to Analysis
           ),
         ),
       );
