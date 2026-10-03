@@ -84,4 +84,36 @@ class GroupService {
       'memberDetails.${user.uid}.testsGiven': FieldValue.increment(1),
     });
   }
+
+  // Group Doubt Wall Functions
+  Future<void> postDoubt({
+    required String groupCode,
+    required String questionText,
+    required String testTitle,
+  }) async {
+    User? user = _auth.currentUser;
+    if (user == null) return;
+
+    await _db
+        .collection('study_groups')
+        .doc(groupCode)
+        .collection('doubts')
+        .add({
+      'askedBy': user.displayName ?? "Student",
+      'userId': user.uid,
+      'questionText': questionText,
+      'testTitle': testTitle,
+      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'Unsolved',
+    });
+  }
+
+  Stream<QuerySnapshot> getGroupDoubts(String groupCode) {
+    return _db
+        .collection('study_groups')
+        .doc(groupCode)
+        .collection('doubts')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
 }
