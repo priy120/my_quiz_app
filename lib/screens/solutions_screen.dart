@@ -98,6 +98,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
   late PageController _pageController;
   int _currentIndex = 0;
   bool _isReattemptMode = false;
+  String _categoryName = "";
   
   Map<int, int?> _userReattemptAnswers = {};
 
@@ -105,6 +106,27 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _fetchTestCategory();
+  }
+
+  Future<void> _fetchTestCategory() async {
+    try {
+      var doc = await FirebaseFirestore.instance.collection('mock_tests').doc(widget.testId).get();
+      if (doc.exists && doc.data() != null) {
+        var data = doc.data()!;
+        if (data['category'] != null) {
+          setState(() {
+            _categoryName = data['category'].toString();
+          });
+        } else if (data['examName'] != null) {
+          setState(() {
+            _categoryName = data['examName'].toString();
+          });
+        }
+      }
+    } catch (e) {
+      // Ignore if fetch fails
+    }
   }
 
   @override
@@ -280,7 +302,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                         ),
                                       ],
                                       const SizedBox(height: 12),
-                                      // POST DOUBT IN GROUP BUTTON
                                       SizedBox(
                                         width: double.infinity,
                                         child: ElevatedButton.icon(
@@ -303,6 +324,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                                 groupCode: currentGroupCode,
                                                 questionText: qText,
                                                 testTitle: widget.testTitle,
+                                                categoryName: _categoryName,
                                               );
                                               if (context.mounted) {
                                                 ScaffoldMessenger.of(context).showSnackBar(
