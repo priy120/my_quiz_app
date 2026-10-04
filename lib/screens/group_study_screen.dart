@@ -33,19 +33,25 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
   Future<void> _loadSavedGroupCode() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? savedCode = prefs.getString('user_group_code');
-    if (savedCode != null && savedCode.isNotEmpty) {
-      GroupStudyScreen.activeGroupCode = savedCode;
+    if (savedCode != null && savedCode.trim().isNotEmpty) {
+      GroupStudyScreen.activeGroupCode = savedCode.trim().toUpperCase();
     }
     if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _saveGroupCodeLocally(String code) async {
+    String cleanCode = code.trim().toUpperCase();
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_group_code', code);
-    if (mounted) setState(() => GroupStudyScreen.activeGroupCode = code);
+    await prefs.setString('user_group_code', cleanCode);
+    if (mounted) {
+      setState(() {
+        GroupStudyScreen.activeGroupCode = cleanCode;
+      });
+    }
   }
 
   void _showCreateGroupDialog() {
+    _nameController.clear();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -59,9 +65,9 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
             onPressed: () async {
-              if (_nameController.text.isNotEmpty) {
-                String? code = await _groupService.createGroup(_nameController.text);
-                Navigator.pop(context);
+              if (_nameController.text.trim().isNotEmpty) {
+                String? code = await _groupService.createGroup(_nameController.text.trim());
+                if (mounted) Navigator.pop(context);
                 if (code != null) await _saveGroupCodeLocally(code);
               }
             },
@@ -73,6 +79,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
   }
 
   void _showJoinGroupDialog() {
+    _codeController.clear();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -86,10 +93,10 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
             onPressed: () async {
-              if (_codeController.text.isNotEmpty) {
+              if (_codeController.text.trim().isNotEmpty) {
                 String cleanCode = _codeController.text.trim().toUpperCase();
                 bool success = await _groupService.joinGroup(cleanCode);
-                Navigator.pop(context);
+                if (mounted) Navigator.pop(context);
                 if (success) await _saveGroupCodeLocally(cleanCode);
               }
             },
@@ -119,7 +126,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
             onPressed: () async {
-              if (_replyController.text.trim().isNotEmpty) {
+              if (_replyController.text.trim().isNotEmpty && GroupStudyScreen.activeGroupCode != null) {
                 await _groupService.addDoubtAnswer(
                   groupCode: GroupStudyScreen.activeGroupCode!,
                   doubtId: doubtId,
@@ -214,7 +221,13 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
 
                 Map<String, dynamic> membersMap = groupData['memberDetails'] ?? {};
                 List memberList = membersMap.values.toList();
-                memberList.sort((a, b) => (b['totalScore'] ?? 0).compareTo(a['totalScore'] ?? 0));
+                
+                // Safe Double Comparison for Sorting
+                memberList.sort((a, b) {
+                  double scoreA = ((a['totalScore'] ?? 0) as num).toDouble();
+                  double scoreB = ((b['totalScore'] ?? 0) as num).toDouble();
+                  return scoreB.compareTo(scoreA);
+                });
 
                 String topScorer = memberList.isNotEmpty ? (memberList[0]['name'] ?? 'Topper') : 'N/A';
                 dynamic topScore = memberList.isNotEmpty ? (memberList[0]['totalScore'] ?? 0) : 0;
@@ -257,7 +270,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                                     style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                                   ),
                                   const SizedBox(height: 6),
-                                  Text("👑 Current Leader: $topScorer ($topScore pts)", style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
+                                  Text("🏆 Current Leader: $topScorer ($topScore pts)", style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
                                   const SizedBox(height: 12),
                                   SizedBox(
                                     width: double.infinity,
@@ -284,7 +297,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text("🏆 LIVE LEADERBOARD", style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+                                Text("🥇 LIVE LEADERBOARD", style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
                                 Text("${memberList.length} Members", style: GoogleFonts.poppins(fontSize: 11, color: Colors.indigo, fontWeight: FontWeight.bold)),
                               ],
                             ),
