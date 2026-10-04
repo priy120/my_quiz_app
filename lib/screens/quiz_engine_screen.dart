@@ -21,8 +21,11 @@ class MathJaxView extends StatefulWidget {
   State<MathJaxView> createState() => _MathJaxViewState();
 }
 
-class _MathJaxViewState extends State<MathJaxView> {
+class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -78,6 +81,7 @@ class _MathJaxViewState extends State<MathJaxView> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return SizedBox(
       height: widget.fontSize * 3.8,
       child: WebViewWidget(controller: _controller),
@@ -89,7 +93,7 @@ class QuizEngineScreen extends StatefulWidget {
   final String testId;
   final String testTitle;
   final bool isReattempt;
-  final String? groupCode; // Group Support
+  final String? groupCode;
 
   const QuizEngineScreen({
     super.key,
@@ -107,7 +111,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late PageController _pageController;
   int currentQuestionIndex = 0;
   Timer? _timer;
-  int _secondsRemaining = 3600;
+  
+  final ValueNotifier<int> _secondsRemainingNotifier = ValueNotifier<int>(3600);
 
   List<Map<String, dynamic>> questions = [];
   bool _isLoadingQuestions = true;
@@ -140,10 +145,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           .doc(widget.testId)
           .get();
 
+      int initialSeconds = 3600;
       if (testDoc.exists) {
         final testData = testDoc.data();
         int adminDurationMinutes = testData?['durationMinutes'] ?? 60;
-        _secondsRemaining = adminDurationMinutes * 60;
+        initialSeconds = adminDurationMinutes * 60;
       }
 
       final snapshot = await FirebaseFirestore.instance
@@ -181,7 +187,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
           if (savedDoc.exists) {
             final data = savedDoc.data()!;
-            _secondsRemaining = data['remainingSeconds'] ?? _secondsRemaining;
+            initialSeconds = data['remainingSeconds'] ?? initialSeconds;
             currentQuestionIndex = data['currentIndex'] ?? 0;
             List<dynamic> savedAnswers = data['selectedAnswers'] ?? [];
             for (int i = 0; i < savedAnswers.length && i < selectedAnswers.length; i++) {
@@ -193,11 +199,18 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           }
         }
 
+        _secondsRemainingNotifier.value = initialSeconds;
+
         if (questionStatuses[currentQuestionIndex] == QuestionStatus.notVisited) {
           questionStatuses[currentQuestionIndex] = QuestionStatus.notAnswered;
         }
 
-        _pageController = PageController(initialPage: currentQuestionIndex);
+        if (_pageController.hasClients) {
+          _pageController.jumpToPage(currentQuestionIndex);
+        } else {
+          _pageController = PageController(initialPage: currentQuestionIndex);
+        }
+
         setState(() => _isLoadingQuestions = false);
         _startTimer();
       } else {
@@ -209,9 +222,10 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsRemaining > 0) {
-        setState(() => _secondsRemaining--);
+      if (_secondsRemainingNotifier.value > 0) {
+        _secondsRemainingNotifier.value--;
       } else {
         _timer?.cancel();
         _submitTestWithAd();
@@ -275,15 +289,25 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       if (questionStatuses[currentQuestionIndex] == QuestionStatus.notVisited) {
         questionStatuses[currentQuestionIndex] = QuestionStatus.notAnswered;
       }
+
+      if (questions.isNotEmpty && questions[index]['section'] != null) {
+        String sec = questions[index]['section'].toString();
+        int secIdx = _sections.indexOf(sec);
+        if (secIdx != -1) {
+          _currentSectionIndex = secIdx;
+        }
+      }
     });
   }
 
   void _navigateToQuestion(int index) {
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-    );
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   void _selectOption(int optIndex) {
@@ -356,7 +380,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                     .set({
                   'testId': widget.testId,
                   'testTitle': widget.testTitle,
-                  'remainingSeconds': _secondsRemaining,
+                  'remainingSeconds': _secondsRemainingNotifier.value,
                   'currentIndex': currentQuestionIndex,
                   'selectedAnswers': selectedAnswers,
                   'updatedAt': FieldValue.serverTimestamp(),
@@ -546,7 +570,16 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               Navigator.pop(context);
               if (isSectionSubmit) {
                 if (_currentSectionIndex < _sections.length - 1) {
-                  setState(() => _currentSectionIndex++);
+                  setState(() {
+                    _currentSectionIndex++;
+                  });
+                  String targetSection = _sections[_currentSectionIndex];
+                  int targetIndex = questions.indexWhere((q) => q['section'] == targetSection);
+                  if (targetIndex != -1) {
+                    _navigateToQuestion(targetIndex);
+                  }
+                } else {
+                  _submitTestWithAd();
                 }
               } else {
                 _submitTestWithAd();
@@ -591,7 +624,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // Fetch Previous Attempt Count
       final existingDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -605,7 +637,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         newAttemptCount = currentAttempts + 1;
       }
 
-      // Save Latest Attempt
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -623,17 +654,22 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         'attemptedAt': FieldValue.serverTimestamp(),
       });
 
-      // SYNC SCORE TO STUDY GROUP LEADERBOARD
-      String? activeGroup = widget.groupCode ?? GroupStudyScreen.activeGroupCode;
-      if (activeGroup != null && activeGroup.isNotEmpty) {
-        try {
-          await GroupService().updateGroupScore(activeGroup, totalScore);
-        } catch (e) {
-          debugPrint('Error updating group score: $e');
+      // SYNC SCORE TO STUDY GROUP (Only First Attempt - No Reattempts)
+      if (!widget.isReattempt) {
+        String? activeGroup = widget.groupCode ?? GroupStudyScreen.activeGroupCode;
+        if (activeGroup != null && activeGroup.isNotEmpty) {
+          try {
+            await GroupService().updateGroupScore(
+              activeGroup, 
+              totalScore, 
+              isReattempt: widget.isReattempt,
+            );
+          } catch (e) {
+            debugPrint('Error updating group score: $e');
+          }
         }
       }
 
-      // Clear Paused Entry
       try {
         await FirebaseFirestore.instance
             .collection('users')
@@ -670,6 +706,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _secondsRemainingNotifier.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -689,7 +726,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (bool didPop) async {
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop) return;
         final shouldExit = await _showPauseDialog();
         if (shouldExit && context.mounted) {
@@ -714,14 +751,22 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
               decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(6)),
-              child: Text(_formatTime(_secondsRemaining), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 10)),
+              child: ValueListenableBuilder<int>(
+                valueListenable: _secondsRemainingNotifier,
+                builder: (context, seconds, child) {
+                  return Text(
+                    _formatTime(seconds),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 10),
+                  );
+                },
+              ),
             ),
             IconButton(icon: const Icon(Icons.info_outline, color: Colors.white), onPressed: () {}),
           ],
         ),
         backgroundColor: const Color(0xFFF4F6FA),
         floatingActionButton: Padding(
-          padding: const EdgeInsets.only(bottom: 45.0),
+          padding: const EdgeInsets.only(bottom: 50.0),
           child: FloatingActionButton(
             mini: true,
             backgroundColor: Colors.green.shade700,
