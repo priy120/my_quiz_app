@@ -13,16 +13,55 @@ class GroupService {
         6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
-  // Real Name Fallback Logic
-  String _getUserDisplayName(User user) {
+  // Fetch real name directly from User Profile / Firestore
+  Future<String> getUserRealName() async {
+    User? user = _auth.currentUser;
+    if (user == null) return "Student";
+
+    try {
+      // 1. Try reading from Firestore User Document
+      DocumentSnapshot userDoc = await _db.collection('users').doc(user.uid).get();
+      if (userDoc.exists) {
+        var data = userDoc.data() as Map<String, dynamic>?;
+        if (data != null && data['name'] != null && data['name'].toString().trim().isNotEmpty) {
+          return data['name'].toString().trim();
+        }
+        if (data != null && data['fullName'] != null && data['fullName'].toString().trim().isNotEmpty) {
+          return data['fullName'].toString().trim();
+        }
+      }
+    } catch (e) {
+      // Fallback if Firestore read fails
+    }
+
+    // 2. Try FirebaseAuth Display Name
     if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
       return user.displayName!;
-    } else if (user.email != null && user.email!.contains('@')) {
-      return user.email!.split('@')[0];
-    } else if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
-      return user.phoneNumber!;
     }
-    return "User_${user.uid.substring(0, 4)}";
+
+    // 3. Email Prefix Fallback
+    if (user.email != null && user.email!.contains('@')) {
+      return user.email!.split('@')[0];
+    }
+
+    return "Student_${user.uid.substring(0, 4)}";
+  }
+
+  Future<void> updateUserName(String groupCode, String newName) async {
+    User? user = _auth.currentUser;
+    if (user == null) return;
+
+    await user.updateDisplayName(newName);
+    
+    // Update in users collection
+    await _db.collection('users').doc(user.uid).set({
+      'name': newName,
+    }, SetOptions(merge: true));
+
+    // Update in active study group
+    await _db.collection('study_groups').doc(groupCode).update({
+      'memberDetails.${user.uid}.name': newName,
+    });
   }
 
   Future<String?> createGroup(String groupName) async {
@@ -31,7 +70,7 @@ class GroupService {
       if (user == null) return null;
 
       String groupCode = _generateGroupCode();
-      String userName = _getUserDisplayName(user);
+      String userName = await getUserRealName();
 
       await _db.collection('study_groups').doc(groupCode).set({
         'groupCode': groupCode,
@@ -64,7 +103,7 @@ class GroupService {
 
       if (!doc.exists) return false;
 
-      String userName = _getUserDisplayName(user);
+      String userName = await getUserRealName();
 
       await _db.collection('study_groups').doc(groupCode.trim().toUpperCase()).update({
         'members': FieldValue.arrayUnion([user.uid]),
@@ -89,7 +128,7 @@ class GroupService {
     User? user = _auth.currentUser;
     if (user == null) return;
 
-    String userName = _getUserDisplayName(user);
+    String userName = await getUserRealName();
 
     await _db.collection('study_groups').doc(groupCode).update({
       'memberDetails.${user.uid}.name': userName,
@@ -98,16 +137,19 @@ class GroupService {
     });
   }
 
-  // Enhanced Doubt Wall Methods
   Future<void> postDoubt({
     required String groupCode,
     required String questionText,
     required String testTitle,
+    String? categoryName,
   }) async {
     User? user = _auth.currentUser;
     if (user == null) return;
 
-    String userName = _getUserDisplayName(user);
+    String userName = await getUserRealName();
+    String fullTag = (categoryName != null && categoryName.isNotEmpty) 
+        ? "$categoryName - $testTitle" 
+        : testTitle;
 
     await _db
         .collection('study_groups')
@@ -117,7 +159,7 @@ class GroupService {
       'askedBy': userName,
       'userId': user.uid,
       'questionText': questionText,
-      'testTitle': testTitle,
+      'testTitle': fullTag,
       'createdAt': FieldValue.serverTimestamp(),
       'answers': [],
     });
@@ -131,7 +173,7 @@ class GroupService {
     User? user = _auth.currentUser;
     if (user == null) return;
 
-    String userName = _getUserDisplayName(user);
+    String userName = await getUserRealName();
 
     await _db
         .collection('study_groups')
