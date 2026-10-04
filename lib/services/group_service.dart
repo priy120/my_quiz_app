@@ -1,16 +1,19 @@
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:math';
 
 class GroupService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // Generate Unique Group Code
   String _generateGroupCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
     Random rnd = Random();
-    return String.fromCharCodes(Iterable.generate(
-        6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+    return String.fromCharCodes(
+      Iterable.generate(6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))),
+    );
   }
 
   // Fetch real name directly from User Profile / Firestore
@@ -31,7 +34,7 @@ class GroupService {
         }
       }
     } catch (e) {
-      // Fallback if Firestore read fails
+      debugPrint("Error fetching user name from Firestore: $e");
     }
 
     // 2. Try FirebaseAuth Display Name
@@ -47,23 +50,30 @@ class GroupService {
     return "Student_${user.uid.substring(0, 4)}";
   }
 
+  // Update UserName across User collection and Active Group
   Future<void> updateUserName(String groupCode, String newName) async {
     User? user = _auth.currentUser;
     if (user == null) return;
 
     await user.updateDisplayName(newName);
-    
+
     // Update in users collection
     await _db.collection('users').doc(user.uid).set({
       'name': newName,
     }, SetOptions(merge: true));
 
     // Update in active study group
-    await _db.collection('study_groups').doc(groupCode).update({
-      'memberDetails.${user.uid}.name': newName,
-    });
+    String formattedGroupCode = groupCode.trim().toUpperCase();
+    await _db.collection('study_groups').doc(formattedGroupCode).set({
+      'memberDetails': {
+        user.uid: {
+          'name': newName,
+        }
+      }
+    }, SetOptions(merge: true));
   }
 
+  // Create New Study Group
   Future<String?> createGroup(String groupName) async {
     try {
       User? user = _auth.currentUser;
@@ -89,54 +99,81 @@ class GroupService {
 
       return groupCode;
     } catch (e) {
+      debugPrint("Error creating group: $e");
       return null;
     }
   }
 
+  // Join Existing Study Group
   Future<bool> joinGroup(String groupCode) async {
     try {
       User? user = _auth.currentUser;
       if (user == null) return false;
 
-      DocumentSnapshot doc =
-          await _db.collection('study_groups').doc(groupCode.trim().toUpperCase()).get();
+      String formattedGroupCode = groupCode.trim().toUpperCase();
+      DocumentSnapshot doc = await _db.collection('study_groups').doc(formattedGroupCode).get();
 
       if (!doc.exists) return false;
 
       String userName = await getUserRealName();
 
-      await _db.collection('study_groups').doc(groupCode.trim().toUpperCase()).update({
+      await _db.collection('study_groups').doc(formattedGroupCode).set({
         'members': FieldValue.arrayUnion([user.uid]),
-        'memberDetails.${user.uid}': {
-          'name': userName,
-          'totalScore': 0,
-          'testsGiven': 0,
+        'memberDetails': {
+          user.uid: {
+            'name': userName,
+            'totalScore': 0,
+            'testsGiven': 0,
+          }
         }
-      });
+      }, SetOptions(merge: true));
 
       return true;
     } catch (e) {
+      debugPrint("Error joining group: $e");
       return false;
     }
   }
 
+  // Get Group Stream Details
   Stream<DocumentSnapshot> getGroupDetails(String groupCode) {
-    return _db.collection('study_groups').doc(groupCode).snapshots();
+    String formattedGroupCode = groupCode.trim().toUpperCase();
+    return _db.collection('study_groups').doc(formattedGroupCode).snapshots();
   }
 
-  Future<void> updateGroupScore(String groupCode, double newScore) async {
+  // Update Score in Group Leaderboard (Fixed & Improved)
+  Future<void> updateGroupScore(String groupCode, double newScore, {bool isReattempt = false}) async {
     User? user = _auth.currentUser;
     if (user == null) return;
 
-    String userName = await getUserRealName();
+    // Reattempt par points add nahi honge
+    if (isReattempt) {
+      debugPrint("Reattempt detected: Group score will not be updated.");
+      return;
+    }
 
-    await _db.collection('study_groups').doc(groupCode).update({
-      'memberDetails.${user.uid}.name': userName,
-      'memberDetails.${user.uid}.totalScore': FieldValue.increment(newScore),
-      'memberDetails.${user.uid}.testsGiven': FieldValue.increment(1),
-    });
+    String formattedGroupCode = groupCode.trim().toUpperCase();
+
+    try {
+      String userName = await getUserRealName();
+
+      await _db.collection('study_groups').doc(formattedGroupCode).set({
+        'memberDetails': {
+          user.uid: {
+            'name': userName,
+            'totalScore': FieldValue.increment(newScore),
+            'testsGiven': FieldValue.increment(1),
+          }
+        }
+      }, SetOptions(merge: true));
+
+      debugPrint("Group score successfully updated for $formattedGroupCode");
+    } catch (e) {
+      debugPrint("Error updating group score: $e");
+    }
   }
 
+  // Post Doubt inside Group
   Future<void> postDoubt({
     required String groupCode,
     required String questionText,
@@ -147,13 +184,15 @@ class GroupService {
     if (user == null) return;
 
     String userName = await getUserRealName();
-    String fullTag = (categoryName != null && categoryName.isNotEmpty) 
-        ? "$categoryName - $testTitle" 
+    String fullTag = (categoryName != null && categoryName.isNotEmpty)
+        ? "$categoryName - $testTitle"
         : testTitle;
+
+    String formattedGroupCode = groupCode.trim().toUpperCase();
 
     await _db
         .collection('study_groups')
-        .doc(groupCode)
+        .doc(formattedGroupCode)
         .collection('doubts')
         .add({
       'askedBy': userName,
@@ -165,6 +204,7 @@ class GroupService {
     });
   }
 
+  // Reply / Answer to a Doubt
   Future<void> addDoubtAnswer({
     required String groupCode,
     required String doubtId,
@@ -174,10 +214,11 @@ class GroupService {
     if (user == null) return;
 
     String userName = await getUserRealName();
+    String formattedGroupCode = groupCode.trim().toUpperCase();
 
     await _db
         .collection('study_groups')
-        .doc(groupCode)
+        .doc(formattedGroupCode)
         .collection('doubts')
         .doc(doubtId)
         .update({
@@ -191,10 +232,12 @@ class GroupService {
     });
   }
 
+  // Get Doubts Stream
   Stream<QuerySnapshot> getGroupDoubts(String groupCode) {
+    String formattedGroupCode = groupCode.trim().toUpperCase();
     return _db
         .collection('study_groups')
-        .doc(groupCode)
+        .doc(formattedGroupCode)
         .collection('doubts')
         .orderBy('createdAt', descending: true)
         .snapshots();
