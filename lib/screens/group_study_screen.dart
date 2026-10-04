@@ -18,6 +18,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
   final GroupService _groupService = GroupService();
   final TextEditingController _codeController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _replyController = TextEditingController();
   final GlobalKey _posterKey = GlobalKey();
   late TabController _tabController;
   bool _isLoading = true;
@@ -29,28 +30,19 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
     _loadSavedGroupCode();
   }
 
-  // Load saved group code automatically on screen launch
   Future<void> _loadSavedGroupCode() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? savedCode = prefs.getString('user_group_code');
     if (savedCode != null && savedCode.isNotEmpty) {
       GroupStudyScreen.activeGroupCode = savedCode;
     }
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _saveGroupCodeLocally(String code) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_group_code', code);
-    if (mounted) {
-      setState(() {
-        GroupStudyScreen.activeGroupCode = code;
-      });
-    }
+    if (mounted) setState(() => GroupStudyScreen.activeGroupCode = code);
   }
 
   void _showCreateGroupDialog() {
@@ -60,10 +52,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
         title: Text("Create Study Circle", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         content: TextField(
           controller: _nameController,
-          decoration: const InputDecoration(
-            hintText: "Enter Group/Library Name",
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(hintText: "Enter Group/Library Name", border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
@@ -73,12 +62,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
               if (_nameController.text.isNotEmpty) {
                 String? code = await _groupService.createGroup(_nameController.text);
                 Navigator.pop(context);
-                if (code != null) {
-                  await _saveGroupCodeLocally(code);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Group Created! Code: $code")),
-                  );
-                }
+                if (code != null) await _saveGroupCodeLocally(code);
               }
             },
             child: const Text("Create", style: TextStyle(color: Colors.white)),
@@ -95,10 +79,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
         title: Text("Join Study Circle", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         content: TextField(
           controller: _codeController,
-          decoration: const InputDecoration(
-            hintText: "Enter 6-Digit Code",
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(hintText: "Enter 6-Digit Code", border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
@@ -109,13 +90,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                 String cleanCode = _codeController.text.trim().toUpperCase();
                 bool success = await _groupService.joinGroup(cleanCode);
                 Navigator.pop(context);
-                if (success) {
-                  await _saveGroupCodeLocally(cleanCode);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Invalid Group Code!")),
-                  );
-                }
+                if (success) await _saveGroupCodeLocally(cleanCode);
               }
             },
             child: const Text("Join", style: TextStyle(color: Colors.white)),
@@ -125,13 +100,44 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
     );
   }
 
+  void _showReplyDialog(String doubtId) {
+    _replyController.clear();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Answer this Doubt", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+        content: TextField(
+          controller: _replyController,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: "Write solution or explanation...",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+            onPressed: () async {
+              if (_replyController.text.trim().isNotEmpty) {
+                await _groupService.addDoubtAnswer(
+                  groupCode: GroupStudyScreen.activeGroupCode!,
+                  doubtId: doubtId,
+                  replyText: _replyController.text.trim(),
+                );
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text("Post Answer", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
       appBar: AppBar(
@@ -146,9 +152,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
               onPressed: () async {
                 SharedPreferences prefs = await SharedPreferences.getInstance();
                 await prefs.remove('user_group_code');
-                setState(() {
-                  GroupStudyScreen.activeGroupCode = null;
-                });
+                setState(() => GroupStudyScreen.activeGroupCode = null);
               },
             )
         ],
@@ -175,26 +179,14 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                   children: [
                     const Icon(Icons.groups_rounded, size: 80, color: Color(0xFF1A237E)),
                     const SizedBox(height: 16),
-                    Text(
-                      "Compete with Library Friends!",
-                      style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Create or join a study group to sync mock scores live.",
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
-                    ),
+                    Text("Compete with Library Friends!", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.add, color: Colors.white),
                         label: Text("Create New Group", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A237E),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E), padding: const EdgeInsets.symmetric(vertical: 14)),
                         onPressed: _showCreateGroupDialog,
                       ),
                     ),
@@ -204,10 +196,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.login, color: Color(0xFF1A237E)),
                         label: Text("Join Group with Code", style: GoogleFonts.poppins(color: const Color(0xFF1A237E), fontWeight: FontWeight.bold)),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: const BorderSide(color: Color(0xFF1A237E)),
-                        ),
+                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                         onPressed: _showJoinGroupDialog,
                       ),
                     ),
@@ -233,7 +222,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                 return TabBarView(
                   controller: _tabController,
                   children: [
-                    // TAB 1: LEADERBOARD + POSTER
+                    // TAB 1: LEADERBOARD
                     SingleChildScrollView(
                       child: Column(
                         children: [
@@ -331,7 +320,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                       ),
                     ),
 
-                    // TAB 2: GROUP DOUBT WALL
+                    // TAB 2: INTERACTIVE DOUBT WALL
                     StreamBuilder<QuerySnapshot>(
                       stream: _groupService.getGroupDoubts(GroupStudyScreen.activeGroupCode!),
                       builder: (context, doubtSnap) {
@@ -355,9 +344,12 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                           padding: const EdgeInsets.all(12),
                           itemCount: doubts.length,
                           itemBuilder: (context, index) {
-                            var doubt = doubts[index].data() as Map<String, dynamic>;
+                            var doc = doubts[index];
+                            var doubt = doc.data() as Map<String, dynamic>;
+                            List answers = doubt['answers'] ?? [];
+
                             return Card(
-                              margin: const EdgeInsets.only(bottom: 10),
+                              margin: const EdgeInsets.only(bottom: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               child: Padding(
                                 padding: const EdgeInsets.all(12.0),
@@ -367,16 +359,56 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(doubt['askedBy'] ?? "Student", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF1A237E), fontSize: 12)),
+                                        Text(
+                                          doubt['askedBy'] ?? "Student",
+                                          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF1A237E), fontSize: 13),
+                                        ),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(4)),
-                                          child: Text(doubt['testTitle'] ?? "Mock Test", style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(color: Colors.indigo.shade50, borderRadius: BorderRadius.circular(4)),
+                                          child: Text(
+                                            doubt['testTitle'] ?? "Mock Test",
+                                            style: GoogleFonts.poppins(fontSize: 10, color: const Color(0xFF1A237E), fontWeight: FontWeight.bold),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                    const Divider(height: 12),
+                                    const Divider(height: 14),
                                     Text(doubt['questionText'] ?? "", style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
+                                    
+                                    // ANSWERS FEED
+                                    if (answers.isNotEmpty) ...[
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text("💡 Answers (${answers.length}):", style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
+                                            const SizedBox(height: 4),
+                                            ...answers.map((ans) => Padding(
+                                                  padding: const EdgeInsets.only(bottom: 4.0),
+                                                  child: Text(
+                                                    "• ${ans['answeredBy']}: ${ans['answerText']}",
+                                                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.black87),
+                                                  ),
+                                                )),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+
+                                    const SizedBox(height: 8),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton.icon(
+                                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                                        icon: const Icon(Icons.reply, size: 14, color: Colors.orange),
+                                        label: Text("Answer Doubt", style: GoogleFonts.poppins(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 11)),
+                                        onPressed: () => _showReplyDialog(doc.id),
+                                      ),
+                                    )
                                   ],
                                 ),
                               ),
