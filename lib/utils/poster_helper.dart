@@ -18,9 +18,13 @@ class PosterHelper {
       final file = await File('${tempDir.path}/group_challenge.png').create();
       await file.writeAsBytes(pngBytes);
 
+      String appDownloadUrl = "https://play.google.com/store/apps/details?id=com.competeme.app";
+
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: "🔥 Join our Study Group '$groupName' on CompeteMe! Use Code: $groupCode to compete live in Mock Tests!",
+        text: "🔥 Join my Study Circle '$groupName' on CompeteMe!\n"
+              "🔑 Group Code: $groupCode\n\n"
+              "📲 Download CompeteMe App to compete live in Mock Tests: $appDownloadUrl",
       );
     } catch (e) {
       debugPrint("Poster share error: $e");
