@@ -654,7 +654,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         'attemptedAt': FieldValue.serverTimestamp(),
       });
 
-      // SYNC SCORE TO STUDY GROUP (Only First Attempt - No Reattempts)
+      // SYNC SCORE TO STUDY GROUP LEADERBOARD (Only First Attempt - No Reattempts)
       if (!widget.isReattempt) {
         String? activeGroup = widget.groupCode ?? GroupStudyScreen.activeGroupCode;
         if (activeGroup != null && activeGroup.isNotEmpty) {
@@ -726,7 +726,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, Object? result) async {
+      onPopInvoked: (bool didPop) async {
         if (didPop) return;
         final shouldExit = await _showPauseDialog();
         if (shouldExit && context.mounted) {
