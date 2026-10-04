@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'analysis_screen.dart';
+import 'group_study_screen.dart';
+import '../services/group_service.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
@@ -87,7 +89,7 @@ class QuizEngineScreen extends StatefulWidget {
   final String testId;
   final String testTitle;
   final bool isReattempt;
-  final String? groupCode; // Group Support Added
+  final String? groupCode; // Group Support
 
   const QuizEngineScreen({
     super.key,
@@ -402,7 +404,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       children: [
                         const CircleAvatar(backgroundColor: Color(0xFF1A237E), child: Icon(Icons.person, color: Colors.white)),
                         const SizedBox(width: 10),
-                        Text(user?.displayName ?? 'Priyanshu', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(user?.displayName ?? 'Student', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
                         const Spacer(),
                         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                       ],
@@ -621,6 +623,16 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         'attemptedAt': FieldValue.serverTimestamp(),
       });
 
+      // SYNC SCORE TO STUDY GROUP LEADERBOARD
+      String? activeGroup = widget.groupCode ?? GroupStudyScreen.activeGroupCode;
+      if (activeGroup != null && activeGroup.isNotEmpty) {
+        try {
+          await GroupService().updateGroupScore(activeGroup, totalScore);
+        } catch (e) {
+          debugPrint('Error updating group score: $e');
+        }
+      }
+
       // Clear Paused Entry
       try {
         await FirebaseFirestore.instance
@@ -648,7 +660,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             correctCount: correctCount,
             wrongCount: wrongCount,
             unattemptedCount: unattemptedCount,
-            groupCode: widget.groupCode, // Pass Group Code to Analysis
+            groupCode: widget.groupCode ?? GroupStudyScreen.activeGroupCode,
           ),
         ),
       );
