@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'group_study_screen.dart';
+import '../services/group_service.dart';
 
 class MathJaxView extends StatefulWidget {
   final String content;
@@ -276,7 +278,53 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                           borderRadius: BorderRadius.circular(8),
                                           child: Image.network(qImageUrl.trim(), fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
                                         ),
-                                      ]
+                                      ],
+                                      const SizedBox(height: 12),
+                                      // POST DOUBT IN GROUP BUTTON
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.orange.shade800,
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                          ),
+                                          icon: const Icon(Icons.help_outline, size: 16, color: Colors.white),
+                                          label: Text(
+                                            "Post Doubt in Group",
+                                            style: GoogleFonts.poppins(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                          ),
+                                          onPressed: () async {
+                                            String? currentGroupCode = GroupStudyScreen.activeGroupCode;
+                                            if (currentGroupCode != null && currentGroupCode.isNotEmpty) {
+                                              await GroupService().postDoubt(
+                                                groupCode: currentGroupCode,
+                                                questionText: qText,
+                                                testTitle: widget.testTitle,
+                                              );
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text("Doubt posted to your Study Group Doubt Wall!"),
+                                                    backgroundColor: Colors.green,
+                                                  ),
+                                                );
+                                              }
+                                            } else {
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text("Please Join or Create a Study Group first!"),
+                                                    backgroundColor: Colors.redAccent,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          },
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
