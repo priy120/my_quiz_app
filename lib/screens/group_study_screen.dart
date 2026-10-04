@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/group_service.dart';
 import '../utils/poster_helper.dart';
 
@@ -19,11 +20,37 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
   final TextEditingController _nameController = TextEditingController();
   final GlobalKey _posterKey = GlobalKey();
   late TabController _tabController;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadSavedGroupCode();
+  }
+
+  // Load saved group code automatically on screen launch
+  Future<void> _loadSavedGroupCode() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedCode = prefs.getString('user_group_code');
+    if (savedCode != null && savedCode.isNotEmpty) {
+      GroupStudyScreen.activeGroupCode = savedCode;
+    }
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveGroupCodeLocally(String code) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_group_code', code);
+    if (mounted) {
+      setState(() {
+        GroupStudyScreen.activeGroupCode = code;
+      });
+    }
   }
 
   void _showCreateGroupDialog() {
@@ -47,7 +74,7 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
                 String? code = await _groupService.createGroup(_nameController.text);
                 Navigator.pop(context);
                 if (code != null) {
-                  setState(() => GroupStudyScreen.activeGroupCode = code);
+                  await _saveGroupCodeLocally(code);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Group Created! Code: $code")),
                   );
@@ -79,10 +106,11 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
             onPressed: () async {
               if (_codeController.text.isNotEmpty) {
-                bool success = await _groupService.joinGroup(_codeController.text);
+                String cleanCode = _codeController.text.trim().toUpperCase();
+                bool success = await _groupService.joinGroup(cleanCode);
                 Navigator.pop(context);
                 if (success) {
-                  setState(() => GroupStudyScreen.activeGroupCode = _codeController.text.toUpperCase());
+                  await _saveGroupCodeLocally(cleanCode);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Invalid Group Code!")),
@@ -99,11 +127,31 @@ class _GroupStudyScreenState extends State<GroupStudyScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text("Study Group Portal", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
         backgroundColor: const Color(0xFF1A237E),
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          if (GroupStudyScreen.activeGroupCode != null)
+            IconButton(
+              icon: const Icon(Icons.exit_to_app, color: Colors.white),
+              tooltip: "Leave Group",
+              onPressed: () async {
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                await prefs.remove('user_group_code');
+                setState(() {
+                  GroupStudyScreen.activeGroupCode = null;
+                });
+              },
+            )
+        ],
         bottom: GroupStudyScreen.activeGroupCode != null
             ? TabBar(
                 controller: _tabController,
