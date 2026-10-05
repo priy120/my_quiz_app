@@ -46,6 +46,22 @@ class _AdminScreenState extends State<AdminScreen> {
   final TextEditingController _jsonInputController = TextEditingController();
   String? _selectedTestId;
 
+  // --- BATTLE QUESTIONS TAB CONTROLLERS ---
+  String _battleCategoryDocId = 'maths';
+  final TextEditingController _battleQuestionController = TextEditingController();
+  final TextEditingController _battleOpt0Controller = TextEditingController();
+  final TextEditingController _battleOpt1Controller = TextEditingController();
+  final TextEditingController _battleOpt2Controller = TextEditingController();
+  final TextEditingController _battleOpt3Controller = TextEditingController();
+  int _battleCorrectOptIndex = 0;
+
+  final List<Map<String, String>> _battleCategories = [
+    {'name': 'Speed Mathematics', 'id': 'maths'},
+    {'name': 'Hindi Grammar', 'id': 'hindi'},
+    {'name': 'General Knowledge', 'id': 'gk'},
+    {'name': 'Reasoning Ability', 'id': 'reasoning'},
+  ];
+
   void _showSnackbar(String msg, {bool isSuccess = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: isSuccess ? Colors.green : Colors.red),
@@ -200,6 +216,52 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  // --- UPLOAD 1v1 BATTLE QUESTION LOGIC ---
+  Future<void> _uploadBattleQuestion() async {
+    if (_battleQuestionController.text.trim().isEmpty ||
+        _battleOpt0Controller.text.trim().isEmpty ||
+        _battleOpt1Controller.text.trim().isEmpty) {
+      _showSnackbar('Fill Question Text & Options');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    Map<String, dynamic> newBattleQuestion = {
+      'questionText': _battleQuestionController.text.trim(),
+      'options': [
+        _battleOpt0Controller.text.trim(),
+        _battleOpt1Controller.text.trim(),
+        _battleOpt2Controller.text.trim(),
+        _battleOpt3Controller.text.trim(),
+      ],
+      'correctIndex': _battleCorrectOptIndex,
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
+    };
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('battle_questions')
+          .doc(_battleCategoryDocId)
+          .set({
+        'questions': FieldValue.arrayUnion([newBattleQuestion])
+      }, SetOptions(merge: true));
+
+      _showSnackbar('Battle Question Uploaded Successfully! ⚔️', isSuccess: true);
+
+      _battleQuestionController.clear();
+      _battleOpt0Controller.clear();
+      _battleOpt1Controller.clear();
+      _battleOpt2Controller.clear();
+      _battleOpt3Controller.clear();
+      setState(() => _battleCorrectOptIndex = 0);
+    } catch (e) {
+      _showSnackbar('Error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _deleteStudyGroup(String groupCode) async {
     bool confirm = await showDialog(
       context: context,
@@ -248,6 +310,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _buildTabBtn('2. Single Question', 2),
                   _buildTabBtn('3. JSON Batch', 3),
                   _buildTabBtn('4. Study Groups', 4),
+                  _buildTabBtn('5. Battle Questions ⚔️', 5), // Added 5th Tab
                 ],
               ),
             ),
@@ -495,7 +558,7 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
         ),
       );
-    } else {
+    } else if (_selectedTab == 4) {
       return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance.collection('study_groups').snapshots(),
         builder: (context, snapshot) {
@@ -554,6 +617,66 @@ class _AdminScreenState extends State<AdminScreen> {
             ],
           );
         },
+      );
+    } else {
+      // TAB 5: BATTLE QUESTIONS UPLOADER
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Add 1v1 Battle Questions ⚔️', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _battleCategoryDocId,
+                decoration: const InputDecoration(labelText: 'Target Battle Subject', border: OutlineInputBorder()),
+                items: _battleCategories.map((cat) {
+                  return DropdownMenuItem<String>(
+                    value: cat['id'],
+                    child: Text(cat['name']!),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _battleCategoryDocId = val);
+                },
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _battleQuestionController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Question Text', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
+              TextField(controller: _battleOpt0Controller, decoration: const InputDecoration(labelText: 'Option A (Index 0)', border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: _battleOpt1Controller, decoration: const InputDecoration(labelText: 'Option B (Index 1)', border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: _battleOpt2Controller, decoration: const InputDecoration(labelText: 'Option C (Index 2)', border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: _battleOpt3Controller, decoration: const InputDecoration(labelText: 'Option D (Index 3)', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                value: _battleCorrectOptIndex,
+                decoration: const InputDecoration(labelText: 'Correct Option Answer', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('Option A (Index 0)')),
+                  DropdownMenuItem(value: 1, child: Text('Option B (Index 1)')),
+                  DropdownMenuItem(value: 2, child: Text('Option C (Index 2)')),
+                  DropdownMenuItem(value: 3, child: Text('Option D (Index 3)')),
+                ],
+                onChanged: (val) => setState(() => _battleCorrectOptIndex = val ?? 0),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
+                icon: const Icon(Icons.flash_on, color: Colors.amber),
+                label: const Text('UPLOAD BATTLE QUESTION', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                onPressed: _uploadBattleQuestion,
+              ),
+            ],
+          ),
+        ),
       );
     }
   }
