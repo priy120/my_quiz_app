@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'battle_screen.dart';
 
 class BattleAnalysisScreen extends StatelessWidget {
   final String testTitle;
@@ -170,7 +173,7 @@ class BattleAnalysisScreen extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: List.generate(opts.length, (optIdx) {
-                            Color textColor = Colors.black87; // ✅ Fixed Here
+                            Color textColor = Colors.black87;
                             FontWeight weight = FontWeight.normal;
 
                             if (optIdx == correctAns) {
@@ -210,24 +213,141 @@ class BattleAnalysisScreen extends StatelessWidget {
               },
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // EXIT BUTTON
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A237E),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            // 5. ACTION BUTTONS (EXIT & NEW BATTLE)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF1A237E)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+                    child: Text("Exit Arena", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF1A237E))),
+                  ),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                },
-                child: Text("Back to Home", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A237E),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    icon: const Icon(Icons.bolt, color: Colors.amber),
+                    label: Text("NEW BATTLE ⚔️️", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                    onPressed: () async {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => const Center(
+                          child: CircularProgressIndicator(color: Colors.amber),
+                        ),
+                      );
+
+                      try {
+                        final user = FirebaseAuth.instance.currentUser;
+
+                        // Dynamic Category Resolution from Categories Collection
+                        QuerySnapshot catSnap = await FirebaseFirestore.instance
+                            .collection('battle_categories')
+                            .get();
+
+                        String matchedDocId = 'maths'; // Default Fallback
+                        for (var doc in catSnap.docs) {
+                          var catData = doc.data() as Map<String, dynamic>;
+                          String catName = catData['name'] ?? '';
+                          if (catName.toLowerCase() == testTitle.toLowerCase() ||
+                              testTitle.toLowerCase().contains(doc.id.toLowerCase())) {
+                            matchedDocId = doc.id;
+                            break;
+                          }
+                        }
+
+                        // Fetch Question Pool from Firestore
+                        DocumentSnapshot doc = await FirebaseFirestore.instance
+                            .collection('battle_questions')
+                            .doc(matchedDocId)
+                            .get();
+
+                        // Fetch User Played History
+                        List playedQuestionTexts = [];
+                        if (user != null) {
+                          DocumentSnapshot userDoc = await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .get();
+                          if (userDoc.exists && userDoc.data() != null) {
+                            Map userData = userDoc.data() as Map;
+                            playedQuestionTexts = userData['played_battle_questions'] ?? [];
+                          }
+                        }
+
+                        if (context.mounted) Navigator.pop(context); // Close loading
+
+                        if (doc.exists && doc.data() != null) {
+                          var data = doc.data() as Map<String, dynamic>;
+                          List rawQuestions = data['questions'] ?? [];
+
+                          List<Map<String, dynamic>> allQuestions =
+                              List<Map<String, dynamic>>.from(rawQuestions);
+
+                          // Filter out previously seen questions
+                          List<Map<String, dynamic>> freshQuestions = allQuestions
+                              .where((q) => !playedQuestionTexts.contains(q['questionText']))
+                              .toList();
+
+                          // If user played almost all questions, fallback to entire pool
+                          if (freshQuestions.length < 5) {
+                            freshQuestions = List.from(allQuestions);
+                          }
+
+                          freshQuestions.shuffle();
+                          if (freshQuestions.length > 10) {
+                            freshQuestions = freshQuestions.sublist(0, 10);
+                          }
+
+                          // Save new set to user history to avoid future repetition
+                          if (user != null) {
+                            List<String> newTexts =
+                                freshQuestions.map((e) => e['questionText'].toString()).toList();
+                            FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .set({
+                              'played_battle_questions': FieldValue.arrayUnion(newTexts)
+                            }, SetOptions(merge: true));
+                          }
+
+                          if (context.mounted) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BattleScreen(
+                                  testTitle: testTitle,
+                                  questions: freshQuestions,
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Error fetching next battle: $e")),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ],
+            )
           ],
         ),
       ),
@@ -266,11 +386,11 @@ class BattleAnalysisScreen extends StatelessWidget {
       icon = Icons.warning_amber;
       cardColor = Colors.red.shade50;
     } else if (unattempted > 1) {
-      message = "Aapne $unattempted questions time out hone ki wajah se miss kar diye. Speed improve karein!";
+      message = "Aapne $unattempted questions time out hone ki वजह se miss kar diye. Speed improve karein!";
       icon = Icons.timer;
       cardColor = Colors.orange.shade50;
     } else {
-      message = "Match kafi close tha! Opponent ne combo multipliers ki wajah se lead li.";
+      message = "Match kafi close tha! Opponent ne combo multipliers ki वजह se lead li.";
       icon = Icons.trending_up;
     }
 
