@@ -7,7 +7,7 @@ class BattleAnalysisScreen extends StatelessWidget {
   final int oppScore;
   final String oppName;
   final List<Map<String, dynamic>> questions;
-  final List<int?> myAnswers; // User's chosen indices (-1 for timeout)
+  final List<int?> myAnswers;
 
   const BattleAnalysisScreen({
     super.key,
@@ -50,8 +50,8 @@ class BattleAnalysisScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () {
-            Navigator.pop(context); // Close Analysis
-            Navigator.pop(context); // Exit Arena
+            Navigator.pop(context);
+            Navigator.pop(context);
           },
         ),
       ),
@@ -94,7 +94,7 @@ class BattleAnalysisScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // 2. GAP ANALYSIS (WHERE YOU FELL BEHIND)
+            // 2. GAP ANALYSIS
             Text("Battle Insights & Key Takeaways", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 8),
             _buildGapAnalysisCard(isWin, isDraw, myCorrect, myWrong, myUnattempted, myScore, oppScore, oppName),
@@ -170,7 +170,7 @@ class BattleAnalysisScreen extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: List.generate(opts.length, (optIdx) {
-                            Color textColor = Colors.black80;
+                            Color textColor = Colors.black87; // ✅ Fixed Here
                             FontWeight weight = FontWeight.normal;
 
                             if (optIdx == correctAns) {
@@ -222,8 +222,8 @@ class BattleAnalysisScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: () {
-                  Navigator.pop(context); // Close Analysis
-                  Navigator.pop(context); // Exit Arena
+                  Navigator.pop(context);
+                  Navigator.pop(context);
                 },
                 child: Text("Back to Home", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
@@ -258,19 +258,19 @@ class BattleAnalysisScreen extends StatelessWidget {
     Color cardColor = Colors.blue.shade50;
 
     if (isWin) {
-      message = "Brilliant Performance! Aapne accuracy aur accuracy speed dono me opponent ko dominate kiya. Continuous streak bonus se points lead milegi.";
+      message = "Brilliant Performance! Aapne accuracy aur speed dono me opponent ko dominate kiya.";
       icon = Icons.star;
       cardColor = Colors.green.shade50;
     } else if (wrong > 2) {
-      message = "Aap $wrong galat uttar hone ki wajah se piche reh gaye. Galat attempt karne se streak bonus tut gaya aur opponent aage nikal gaya.";
+      message = "Aap $wrong galat uttar hone ki वजह se piche reh gaye. Galat attempt karne se streak bonus tut gaya.";
       icon = Icons.warning_amber;
       cardColor = Colors.red.shade50;
     } else if (unattempted > 1) {
-      message = "Aapne $unattempted questions time out hone ki wajah se miss kar diye. Time management par focus karein!";
+      message = "Aapne $unattempted questions time out hone ki wajah se miss kar diye. Speed improve karein!";
       icon = Icons.timer;
       cardColor = Colors.orange.shade50;
     } else {
-      message = "Match kafi close tha! Opponent ne speed ya combo multipliers ki wajah se $oppScore points score kar liye. Speed aur accuracy dono improve karein.";
+      message = "Match kafi close tha! Opponent ne combo multipliers ki wajah se lead li.";
       icon = Icons.trending_up;
     }
 
