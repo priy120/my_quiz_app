@@ -33,10 +33,10 @@ class _BattleScreenState extends State<BattleScreen> {
   int streakCount = 0;
   int? selectedOption;
 
-  // Track user answers for final review (-1 for time out)
+  // Track user answers for final analysis review (-1 for time out)
   List<int?> myAnswers = [];
 
-  // Question Timer
+  // Per-Question Countdown Timer
   Timer? _qTimer;
   int _secondsLeft = 10;
 
@@ -66,7 +66,7 @@ class _BattleScreenState extends State<BattleScreen> {
     setState(() {
       streakCount = 0;
       selectedOption = -1;
-      myAnswers.add(-1); // Record timeout
+      myAnswers.add(-1); // Record timeout/unattempted
     });
 
     _nextQuestionWithDelay();
@@ -104,14 +104,14 @@ class _BattleScreenState extends State<BattleScreen> {
     int pointsEarned = 0;
     if (optIdx == correctIdx) {
       streakCount++;
-      pointsEarned = (streakCount >= 2) ? 3 : 2; // Combo Bonus
+      pointsEarned = (streakCount >= 2) ? 3 : 2; // Combo Bonus Multiplier
     } else {
-      streakCount = 0;
+      streakCount = 0; // Reset streak on wrong answer
     }
 
     setState(() {
       selectedOption = optIdx;
-      myAnswers.add(optIdx); // Record chosen option
+      myAnswers.add(optIdx); // Record user choice
       myScore += pointsEarned;
     });
 
@@ -158,7 +158,7 @@ class _BattleScreenState extends State<BattleScreen> {
 
     if (!mounted) return;
 
-    // Open Detailed Performance & Gap Analysis Screen
+    // Navigate to Detailed Performance & Gap Analysis Screen
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -268,7 +268,7 @@ class _BattleScreenState extends State<BattleScreen> {
           ),
           body: Column(
             children: [
-              // REALTIME LIVE SCOREBOARD
+              // REALTIME SCOREBOARD & COMBO INDICATOR
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -303,7 +303,7 @@ class _BattleScreenState extends State<BattleScreen> {
                           )
                       ],
                     ),
-                    // TIMER
+                    // COUNTDOWN TIMER
                     Stack(
                       alignment: Alignment.center,
                       children: [
@@ -344,7 +344,7 @@ class _BattleScreenState extends State<BattleScreen> {
                 ),
               ),
 
-              // QUESTION ARENA
+              // QUESTION & OPTIONS ARENA
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
