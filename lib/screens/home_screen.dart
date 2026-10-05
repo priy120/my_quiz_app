@@ -7,6 +7,7 @@ import 'group_study_screen.dart';
 import 'pdfs_screen.dart';
 import 'profile_screen.dart';
 import 'my_tests_screen.dart';
+import 'battle_screen.dart'; // 1v1 Battle Screen Import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -151,12 +152,39 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
+                // ⚡ UPDATED: 1v1 REAL-TIME BATTLE CARD
                 _buildOptionCard(
-                  title: 'Daily Quiz',
-                  subtitle: 'Timer Based Test',
-                  icon: Icons.timer_outlined,
-                  color: Colors.green,
-                  onTap: () {},
+                  title: '1v1 Battle',
+                  subtitle: 'Live & AI Opponent',
+                  icon: Icons.flash_on_outlined,
+                  color: Colors.redAccent,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BattleScreen(
+                          testTitle: "Live Speed Battle",
+                          questions: [
+                            {
+                              'questionText': '15 × 8 का मान क्या होगा?',
+                              'options': ['110', '120', '130', '125'],
+                              'correctIndex': 1,
+                            },
+                            {
+                              'questionText': 'भारत की राजधानी क्या है?',
+                              'options': ['मुंबई', 'कोलकाता', 'नई दिल्ली', 'चेन्नई'],
+                              'correctIndex': 2,
+                            },
+                            {
+                              'questionText': '√169 + 11 का मान क्या है?',
+                              'options': ['24', '22', '25', '20'],
+                              'correctIndex': 0,
+                            },
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 _buildOptionCard(
                   title: 'Free PDFs',
