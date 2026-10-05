@@ -15,6 +15,7 @@ dependencies:
   firebase_core: ^2.27.0
   firebase_auth: ^4.17.8
   cloud_firestore: ^4.15.8
+  firebase_database: ^10.4.9
 
   # Official Google Webview for Real MathJax
   webview_flutter: ^4.7.0
