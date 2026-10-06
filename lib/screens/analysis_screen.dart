@@ -12,7 +12,8 @@ class AnalysisScreen extends StatefulWidget {
   final int correctCount;
   final int wrongCount;
   final int unattemptedCount;
-  final String? groupCode; // Group Support Added
+  final List<int> questionTimes;
+  final String? groupCode;
 
   const AnalysisScreen({
     super.key,
@@ -23,6 +24,7 @@ class AnalysisScreen extends StatefulWidget {
     required this.correctCount,
     required this.wrongCount,
     required this.unattemptedCount,
+    this.questionTimes = const [],
     this.groupCode,
   });
 
@@ -37,7 +39,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     _syncGroupScore();
   }
 
-  // Group Score Realtime Sync Logic
   Future<void> _syncGroupScore() async {
     if (widget.groupCode != null && widget.groupCode!.isNotEmpty) {
       await GroupService().updateGroupScore(widget.groupCode!, widget.score);
@@ -51,7 +52,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => SolutionsScreen(testId: widget.testId, testTitle: widget.testTitle),
+          builder: (context) => SolutionsScreen(
+            testId: widget.testId,
+            testTitle: widget.testTitle,
+            userQuestionTimes: widget.questionTimes,
+          ),
         ),
       );
     }
@@ -78,7 +83,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => SolutionsScreen(testId: widget.testId, testTitle: widget.testTitle)));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SolutionsScreen(
+                      testId: widget.testId,
+                      testTitle: widget.testTitle,
+                      userQuestionTimes: widget.questionTimes,
+                    ),
+                  ),
+                );
               },
             ),
             const SizedBox(height: 10),
@@ -88,7 +102,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => SolutionsScreen(testId: widget.testId, testTitle: widget.testTitle)));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SolutionsScreen(
+                      testId: widget.testId,
+                      testTitle: widget.testTitle,
+                      userQuestionTimes: widget.questionTimes,
+                    ),
+                  ),
+                );
               },
             ),
           ],
@@ -114,6 +137,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   Widget build(BuildContext context) {
     final int attempted = widget.correctCount + widget.wrongCount;
     final double accuracy = attempted > 0 ? (widget.correctCount / attempted) * 100 : 0.0;
+
+    int totalSpentSeconds = widget.questionTimes.fold(0, (sum, item) => sum + item);
+    double totalSpentMinutes = totalSpentSeconds / 60.0;
 
     return PopScope(
       canPop: false,
@@ -220,7 +246,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   _buildMetricCard('Accuracy', '${accuracy.toStringAsFixed(2)}%', Icons.track_changes, Colors.green),
                   _buildMetricCard('Percentile', '100%', Icons.pie_chart, Colors.orange),
                   _buildMetricCard('Attempted', '$attempted / ${widget.totalQuestions}', Icons.help_outline, Colors.blue),
-                  _buildMetricCard('Time Spent', '0.13 / 60.0', Icons.timer, Colors.purple),
+                  _buildMetricCard('Time Spent', '${totalSpentMinutes.toStringAsFixed(2)} Mins', Icons.timer, Colors.purple),
                 ],
               ),
               const SizedBox(height: 20),
