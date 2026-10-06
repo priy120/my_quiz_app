@@ -83,11 +83,13 @@ class _MathJaxViewState extends State<MathJaxView> {
 class SolutionsScreen extends StatefulWidget {
   final String testId;
   final String testTitle;
+  final List<int> userQuestionTimes;
 
   const SolutionsScreen({
     super.key,
     required this.testId,
     required this.testTitle,
+    this.userQuestionTimes = const [],
   });
 
   @override
@@ -125,7 +127,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
         }
       }
     } catch (e) {
-      // Ignore if fetch fails
+      // Ignore
     }
   }
 
@@ -167,6 +169,49 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
     );
   }
 
+  Widget _buildTestbookTimeBadge(int userTime, int avgTime, int topperTime) {
+    bool isFast = userTime <= topperTime && userTime > 0;
+    bool isAvg = userTime <= avgTime && userTime > topperTime;
+
+    Color userColor = isFast ? Colors.green : (isAvg ? Colors.orange : Colors.red);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildTimeItem("Your Time", "${userTime}s", userColor, isFast ? Icons.flash_on : Icons.timer),
+          const SizedBox(height: 20, child: VerticalDivider(color: Colors.grey)),
+          _buildTimeItem("Avg Time", "${avgTime}s", Colors.black87, Icons.group),
+          const SizedBox(height: 20, child: VerticalDivider(color: Colors.grey)),
+          _buildTimeItem("Topper Time", "${topperTime}s", Colors.indigo, Icons.emoji_events),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeItem(String label, String value, Color color, IconData icon) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 12, color: Colors.grey.shade700),
+            const SizedBox(width: 3),
+            Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(value, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -187,9 +232,12 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
             : null,
         builder: (context, attemptSnapshot) {
           List<dynamic> savedUserAnswers = [];
+          List<dynamic> savedQuestionTimes = [];
+
           if (attemptSnapshot.hasData && attemptSnapshot.data!.exists) {
             final attemptData = attemptSnapshot.data!.data() as Map<String, dynamic>? ?? {};
             savedUserAnswers = attemptData['selectedAnswers'] ?? [];
+            savedQuestionTimes = attemptData['questionTimes'] ?? [];
           }
 
           return StreamBuilder<QuerySnapshot>(
@@ -237,6 +285,16 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                         final List<String> options = _extractOptions(qData['options']);
                         final int correctIdx = qData['correctIndex'] ?? 0;
                         final String solution = qData['solutionText'] ?? 'Detailed explanation coming soon.';
+
+                        int avgTime = qData['avgTimeSeconds'] ?? 30;
+                        int topperTime = qData['topperTimeSeconds'] ?? 12;
+
+                        int userTime = 0;
+                        if (index < widget.userQuestionTimes.length && widget.userQuestionTimes[index] > 0) {
+                          userTime = widget.userQuestionTimes[index];
+                        } else if (index < savedQuestionTimes.length) {
+                          userTime = savedQuestionTimes[index] ?? 0;
+                        }
 
                         int? userSelectedIdx = (index < savedUserAnswers.length) ? savedUserAnswers[index] : null;
                         
@@ -301,6 +359,11 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                           child: Image.network(qImageUrl.trim(), fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox()),
                                         ),
                                       ],
+                                      
+                                      // Testbook Style Time Metrics Comparison Badge
+                                      if (!_isReattemptMode)
+                                        _buildTestbookTimeBadge(userTime, avgTime, topperTime),
+
                                       const SizedBox(height: 12),
                                       SizedBox(
                                         width: double.infinity,
