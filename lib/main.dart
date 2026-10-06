@@ -32,7 +32,7 @@ void main() async {
   // Unity Ads Initialization
   UnityAds.init(
     gameId: '800382914',
-    testMode: false,
+    testMode: true,
     onComplete: () => debugPrint('Unity Ads Initialized Successfully'),
     onFailed: (error, message) => debugPrint('Unity Ads Init Failed: $error $message'),
   );
