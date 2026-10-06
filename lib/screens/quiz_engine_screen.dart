@@ -110,9 +110,15 @@ class QuizEngineScreen extends StatefulWidget {
 class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late PageController _pageController;
   int currentQuestionIndex = 0;
-  Timer? _timer;
   
+  // Master Test Timer
+  Timer? _timer;
   final ValueNotifier<int> _secondsRemainingNotifier = ValueNotifier<int>(3600);
+
+  // Per-Question Stopwatch Timer
+  Timer? _questionTimer;
+  int _currentQuestionSeconds = 0;
+  late List<int> questionTimesInSeconds;
 
   List<Map<String, dynamic>> questions = [];
   bool _isLoadingQuestions = true;
@@ -174,6 +180,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
         selectedAnswers = List<int?>.filled(questions.length, null);
         questionStatuses = List<QuestionStatus>.filled(questions.length, QuestionStatus.notVisited);
+        questionTimesInSeconds = List<int>.filled(questions.length, 0);
 
         final user = FirebaseAuth.instance.currentUser;
 
@@ -190,11 +197,16 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             initialSeconds = data['remainingSeconds'] ?? initialSeconds;
             currentQuestionIndex = data['currentIndex'] ?? 0;
             List<dynamic> savedAnswers = data['selectedAnswers'] ?? [];
+            List<dynamic> savedTimes = data['questionTimes'] ?? [];
+
             for (int i = 0; i < savedAnswers.length && i < selectedAnswers.length; i++) {
               if (savedAnswers[i] != null) {
                 selectedAnswers[i] = savedAnswers[i];
                 questionStatuses[i] = QuestionStatus.answered;
               }
+            }
+            for (int i = 0; i < savedTimes.length && i < questionTimesInSeconds.length; i++) {
+              questionTimesInSeconds[i] = savedTimes[i] ?? 0;
             }
           }
         }
@@ -212,7 +224,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         }
 
         setState(() => _isLoadingQuestions = false);
-        _startTimer();
+        _startMasterTimer();
+        _startQuestionTimer();
       } else {
         setState(() => _isLoadingQuestions = false);
       }
@@ -221,14 +234,30 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     }
   }
 
-  void _startTimer() {
+  void _startMasterTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemainingNotifier.value > 0) {
         _secondsRemainingNotifier.value--;
       } else {
         _timer?.cancel();
+        _questionTimer?.cancel();
         _submitTestWithAd();
+      }
+    });
+  }
+
+  void _startQuestionTimer() {
+    _questionTimer?.cancel();
+    if (questions.isEmpty) return;
+    _currentQuestionSeconds = questionTimesInSeconds[currentQuestionIndex];
+
+    _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentQuestionSeconds++;
+          questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
+        });
       }
     });
   }
@@ -281,6 +310,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   void _onQuestionPageChanged(int index) {
+    questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
+
     setState(() {
       if (questionStatuses[currentQuestionIndex] == QuestionStatus.notVisited) {
         questionStatuses[currentQuestionIndex] = QuestionStatus.notAnswered;
@@ -298,6 +329,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         }
       }
     });
+
+    _startQuestionTimer();
   }
 
   void _navigateToQuestion(int index) {
@@ -356,6 +389,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   Future<bool> _showPauseDialog() async {
+    questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
+
     bool? shouldPause = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -383,6 +418,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                   'remainingSeconds': _secondsRemainingNotifier.value,
                   'currentIndex': currentQuestionIndex,
                   'selectedAnswers': selectedAnswers,
+                  'questionTimes': questionTimesInSeconds,
                   'updatedAt': FieldValue.serverTimestamp(),
                 });
               }
@@ -593,6 +629,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   Future<void> _submitTestWithAd() async {
+    questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
     setState(() => _isSubmitting = true);
 
     UnityAds.showVideoAd(
@@ -605,6 +642,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   Future<void> _processSubmitAndNavigate() async {
     _timer?.cancel();
+    _questionTimer?.cancel();
+
     int correctCount = 0;
     int wrongCount = 0;
     int unattemptedCount = 0;
@@ -649,12 +688,12 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         'correctCount': correctCount,
         'wrongCount': wrongCount,
         'selectedAnswers': selectedAnswers,
+        'questionTimes': questionTimesInSeconds,
         'attemptCount': newAttemptCount,
         'status': 'Completed',
         'attemptedAt': FieldValue.serverTimestamp(),
       });
 
-      // SYNC SCORE TO STUDY GROUP LEADERBOARD (Only First Attempt - No Reattempts)
       if (!widget.isReattempt) {
         String? activeGroup = widget.groupCode ?? GroupStudyScreen.activeGroupCode;
         if (activeGroup != null && activeGroup.isNotEmpty) {
@@ -696,6 +735,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             correctCount: correctCount,
             wrongCount: wrongCount,
             unattemptedCount: unattemptedCount,
+            questionTimes: questionTimesInSeconds,
             groupCode: widget.groupCode ?? GroupStudyScreen.activeGroupCode,
           ),
         ),
@@ -706,6 +746,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _questionTimer?.cancel();
     _secondsRemainingNotifier.dispose();
     _pageController.dispose();
     super.dispose();
@@ -835,12 +876,37 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 Text('No. ${index + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
                                 Row(
                                   children: [
+                                    // ⏱️ Testbook-Style Live Per-Question Stopwatch Badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.indigo.shade50,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFF1A237E), width: 1),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF1A237E)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _formatTime(_currentQuestionSeconds),
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFF1A237E),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
                                     IconButton(icon: const Icon(Icons.bookmark_border, size: 20), onPressed: () {}),
                                     const Icon(Icons.error_outline, color: Colors.red, size: 20),
                                   ],
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 8),
                             Card(
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               child: Padding(
