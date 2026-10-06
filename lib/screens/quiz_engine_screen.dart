@@ -287,6 +287,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   void _handleSectionTimeOver() {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text("Time over for ${_sections[_currentSectionIndex]}! Auto-switching section."),
@@ -302,7 +303,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       String nextSec = _sections[_currentSectionIndex];
       int nextQIndex = questions.indexWhere((q) => q['section'] == nextSec);
       if (nextQIndex != -1) {
-        _navigateToQuestion(nextQIndex);
+        _navigateToQuestion(nextQIndex, force: true);
       }
       _startSectionTimer();
     } else {
@@ -372,7 +373,26 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     );
   }
 
+  // ⚡ PAGE CHANGE LISTENER WITH SECTION BOUNDARY PROTECTION
   void _onQuestionPageChanged(int index) {
+    if (_hasSectionalTiming) {
+      String currentSec = _sections[_currentSectionIndex];
+      String targetSec = questions[index]['section'] ?? currentSec;
+
+      // Prevent sliding across section boundary
+      if (currentSec != targetSec) {
+        _pageController.jumpToPage(currentQuestionIndex);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Is section ke aage nahi ja sakte! Pehle is section ko submit karein."),
+            backgroundColor: Colors.black87,
+            duration: Duration(seconds: 1),
+          ),
+        );
+        return;
+      }
+    }
+
     questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
 
     setState(() {
@@ -396,7 +416,23 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     _startQuestionTimer();
   }
 
-  void _navigateToQuestion(int index) {
+  void _navigateToQuestion(int index, {bool force = false}) {
+    if (!force && _hasSectionalTiming) {
+      String currentSec = _sections[_currentSectionIndex];
+      String targetSec = questions[index]['section'] ?? currentSec;
+
+      if (currentSec != targetSec) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Sectional lock active! Submit this section first."),
+            backgroundColor: Colors.black87,
+            duration: Duration(seconds: 1),
+          ),
+        );
+        return;
+      }
+    }
+
     if (_pageController.hasClients) {
       _pageController.animateToPage(
         index,
@@ -909,6 +945,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
+                    physics: const AlwaysScrollableScrollPhysics(),
                     onPageChanged: _onQuestionPageChanged,
                     itemCount: questions.length,
                     itemBuilder: (context, index) {
