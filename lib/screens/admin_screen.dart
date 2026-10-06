@@ -21,6 +21,13 @@ class _AdminScreenState extends State<AdminScreen> {
   final TextEditingController _totalMarksController = TextEditingController(text: '200');
   final TextEditingController _totalQuestionsController = TextEditingController(text: '100');
 
+  // --- DYNAMIC SECTIONAL TIMING CONTROLLERS ---
+  bool _hasSectionalTiming = false;
+  final TextEditingController _mathTimeController = TextEditingController(text: '20');
+  final TextEditingController _reasoningTimeController = TextEditingController(text: '15');
+  final TextEditingController _englishTimeController = TextEditingController(text: '15');
+  final TextEditingController _gaTimeController = TextEditingController(text: '10');
+
   String? _selectedCategory = 'SSC';
   String _tabType = 'Mocks Tests';
   String _sectionType = 'Full Tests';
@@ -82,6 +89,13 @@ class _AdminScreenState extends State<AdminScreen> {
     setState(() => _isLoading = true);
 
     try {
+      Map<String, int> sectionTimings = {
+        'Quantitative Aptitude': int.tryParse(_mathTimeController.text.trim()) ?? 20,
+        'Logical Reasoning': int.tryParse(_reasoningTimeController.text.trim()) ?? 15,
+        'English Language': int.tryParse(_englishTimeController.text.trim()) ?? 15,
+        'General Awareness': int.tryParse(_gaTimeController.text.trim()) ?? 10,
+      };
+
       DocumentReference docRef = await FirebaseFirestore.instance.collection('mock_tests').add({
         'title': _testTitleController.text.trim(),
         'category': _selectedCategory!.toUpperCase(),
@@ -92,6 +106,11 @@ class _AdminScreenState extends State<AdminScreen> {
         'totalMarks': int.tryParse(_totalMarksController.text.trim()) ?? 200,
         'totalQuestions': int.tryParse(_totalQuestionsController.text.trim()) ?? 100,
         'isFree': _isFreeTest,
+        
+        // Dynamic Sectional Timing Fields
+        'hasSectionalTiming': _hasSectionalTiming,
+        'sectionTimings': _hasSectionalTiming ? sectionTimings : {},
+        
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -206,7 +225,6 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // --- DYNAMIC BATTLE CATEGORY CREATOR ---
   Future<void> _createBattleCategory() async {
     String name = _newBattleCatNameController.text.trim();
     String docId = _newBattleCatIdController.text.trim().toLowerCase();
@@ -239,7 +257,6 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // --- JSON BATCH UPLOAD FOR 1v1 BATTLE QUESTIONS ---
   Future<void> _uploadBattleQuestionsJson() async {
     if (_battleCategoryDocId == null || _battleCategoryDocId!.isEmpty) {
       _showSnackbar('Select a Target Subject First!');
@@ -457,7 +474,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   Expanded(
                     child: TextField(
                       controller: _durationController,
-                      decoration: const InputDecoration(labelText: 'Duration (Mins)', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'Total Mins', border: OutlineInputBorder()),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -475,9 +492,41 @@ class _AdminScreenState extends State<AdminScreen> {
                 value: _isFreeTest,
                 onChanged: (val) => setState(() => _isFreeTest = val),
               ),
-              const SizedBox(height: 12),
+              
+              const Divider(height: 20),
+              
+              // Dynamic Sectional Timing Switch & Inputs
+              SwitchListTile(
+                title: const Text('Enable Sectional Timing (Lock System)?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: const Text('Turn ON for Bank/TCS pattern where sections are locked with individual timers.'),
+                value: _hasSectionalTiming,
+                onChanged: (val) => setState(() => _hasSectionalTiming = val),
+              ),
+
+              if (_hasSectionalTiming) ...[
+                const SizedBox(height: 8),
+                Text('Enter Duration per Section (in Minutes):', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF1A237E))),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: TextField(controller: _mathTimeController, decoration: const InputDecoration(labelText: 'Quant (Mins)', border: OutlineInputBorder()))),
+                    const SizedBox(width: 8),
+                    Expanded(child: TextField(controller: _reasoningTimeController, decoration: const InputDecoration(labelText: 'Reasoning (Mins)', border: OutlineInputBorder()))),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: TextField(controller: _englishTimeController, decoration: const InputDecoration(labelText: 'English (Mins)', border: OutlineInputBorder()))),
+                    const SizedBox(width: 8),
+                    Expanded(child: TextField(controller: _gaTimeController, decoration: const InputDecoration(labelText: 'GA/GK (Mins)', border: OutlineInputBorder()))),
+                  ],
+                ),
+              ],
+
+              const SizedBox(height: 16),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E), minimumSize: const Size(double.infinity, 45)),
                 onPressed: _createTestPackage,
                 child: const Text('CREATE PACKAGE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
@@ -638,10 +687,8 @@ class _AdminScreenState extends State<AdminScreen> {
         },
       );
     } else {
-      // TAB 5: DYNAMIC BATTLE CATEGORIES & JSON UPLOADER
       return Column(
         children: [
-          // 1. ADD NEW BATTLE CATEGORY CARD
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -679,7 +726,6 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 2. JSON BATCH UPLOADER CARD WITH DYNAMIC STREAM
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
