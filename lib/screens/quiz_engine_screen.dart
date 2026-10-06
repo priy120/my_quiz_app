@@ -111,14 +111,19 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late PageController _pageController;
   int currentQuestionIndex = 0;
   
-  // Master Test Timer
-  Timer? _timer;
-  final ValueNotifier<int> _secondsRemainingNotifier = ValueNotifier<int>(3600);
-
-  // Per-Question Stopwatch Timer
+  // Timers
+  Timer? _masterTimer;
+  Timer? _sectionTimer;
   Timer? _questionTimer;
+
+  final ValueNotifier<int> _secondsRemainingNotifier = ValueNotifier<int>(3600);
   int _currentQuestionSeconds = 0;
   late List<int> questionTimesInSeconds;
+
+  // Dynamic Sectional Timing Configuration
+  bool _hasSectionalTiming = false;
+  Map<String, int> _sectionDurationsInSeconds = {};
+  int _currentSectionSecondsRemaining = 0;
 
   List<Map<String, dynamic>> questions = [];
   bool _isLoadingQuestions = true;
@@ -156,6 +161,14 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         final testData = testDoc.data();
         int adminDurationMinutes = testData?['durationMinutes'] ?? 60;
         initialSeconds = adminDurationMinutes * 60;
+
+        _hasSectionalTiming = testData?['hasSectionalTiming'] ?? false;
+        if (_hasSectionalTiming && testData?['sectionTimings'] != null) {
+          Map rawMap = testData!['sectionTimings'];
+          rawMap.forEach((key, val) {
+            _sectionDurationsInSeconds[key.toString()] = ((val as int?) ?? 15) * 60;
+          });
+        }
       }
 
       final snapshot = await FirebaseFirestore.instance
@@ -224,7 +237,12 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         }
 
         setState(() => _isLoadingQuestions = false);
-        _startMasterTimer();
+
+        if (_hasSectionalTiming) {
+          _startSectionTimer();
+        } else {
+          _startMasterTimer();
+        }
         _startQuestionTimer();
       } else {
         setState(() => _isLoadingQuestions = false);
@@ -235,16 +253,61 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   void _startMasterTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _masterTimer?.cancel();
+    _masterTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemainingNotifier.value > 0) {
         _secondsRemainingNotifier.value--;
       } else {
-        _timer?.cancel();
+        _masterTimer?.cancel();
         _questionTimer?.cancel();
         _submitTestWithAd();
       }
     });
+  }
+
+  void _startSectionTimer() {
+    _sectionTimer?.cancel();
+    String currentSec = _sections[_currentSectionIndex];
+    _currentSectionSecondsRemaining = _sectionDurationsInSeconds[currentSec] ?? (15 * 60);
+    _secondsRemainingNotifier.value = _currentSectionSecondsRemaining;
+
+    _sectionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_currentSectionSecondsRemaining > 0) {
+        if (mounted) {
+          setState(() {
+            _currentSectionSecondsRemaining--;
+            _secondsRemainingNotifier.value = _currentSectionSecondsRemaining;
+          });
+        }
+      } else {
+        timer.cancel();
+        _handleSectionTimeOver();
+      }
+    });
+  }
+
+  void _handleSectionTimeOver() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Time over for ${_sections[_currentSectionIndex]}! Auto-switching section."),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+
+    if (_currentSectionIndex < _sections.length - 1) {
+      setState(() {
+        _currentSectionIndex++;
+      });
+
+      String nextSec = _sections[_currentSectionIndex];
+      int nextQIndex = questions.indexWhere((q) => q['section'] == nextSec);
+      if (nextQIndex != -1) {
+        _navigateToQuestion(nextQIndex);
+      }
+      _startSectionTimer();
+    } else {
+      _submitTestWithAd();
+    }
   }
 
   void _startQuestionTimer() {
@@ -376,16 +439,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         _navigateToQuestion(currentQuestionIndex + 1);
       }
     });
-  }
-
-  void _showSectionToast() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("You can't switch section without submitting current section"),
-        duration: Duration(seconds: 2),
-        backgroundColor: Colors.black87,
-      ),
-    );
   }
 
   Future<bool> _showPauseDialog() async {
@@ -520,6 +573,15 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
                         return InkWell(
                           onTap: () {
+                            if (_hasSectionalTiming) {
+                              String qSec = questions[index]['section'] ?? '';
+                              if (qSec != _sections[_currentSectionIndex]) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Section lock active!")),
+                                );
+                                return;
+                              }
+                            }
                             Navigator.pop(context);
                             _navigateToQuestion(index);
                           },
@@ -532,24 +594,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Question Paper', style: TextStyle(fontSize: 11)),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Instructions', style: TextStyle(fontSize: 11)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -570,7 +614,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                           Navigator.pop(context);
                           _confirmSubmitDialog(isSectionSubmit: false);
                         },
-                        child: const Text('Submit Test', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: const Text('Submit Full Test', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -604,19 +648,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
             onPressed: () {
               Navigator.pop(context);
-              if (isSectionSubmit) {
-                if (_currentSectionIndex < _sections.length - 1) {
-                  setState(() {
-                    _currentSectionIndex++;
-                  });
-                  String targetSection = _sections[_currentSectionIndex];
-                  int targetIndex = questions.indexWhere((q) => q['section'] == targetSection);
-                  if (targetIndex != -1) {
-                    _navigateToQuestion(targetIndex);
-                  }
-                } else {
-                  _submitTestWithAd();
-                }
+              if (isSectionSubmit && _hasSectionalTiming) {
+                _handleSectionTimeOver();
               } else {
                 _submitTestWithAd();
               }
@@ -641,7 +674,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   Future<void> _processSubmitAndNavigate() async {
-    _timer?.cancel();
+    _masterTimer?.cancel();
+    _sectionTimer?.cancel();
     _questionTimer?.cancel();
 
     int correctCount = 0;
@@ -745,7 +779,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _masterTimer?.cancel();
+    _sectionTimer?.cancel();
     _questionTimer?.cancel();
     _secondsRemainingNotifier.dispose();
     _pageController.dispose();
@@ -829,8 +864,17 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       final isSel = _currentSectionIndex == index;
                       return GestureDetector(
                         onTap: () {
-                          if (index != _currentSectionIndex) {
-                            _showSectionToast();
+                          if (_hasSectionalTiming && index != _currentSectionIndex) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Sectional lock active! Wait for timer or submit current section."),
+                                backgroundColor: Colors.black87,
+                              ),
+                            );
+                          } else if (!_hasSectionalTiming) {
+                            String targetSec = _sections[index];
+                            int qIdx = questions.indexWhere((q) => q['section'] == targetSec);
+                            if (qIdx != -1) _navigateToQuestion(qIdx);
                           }
                         },
                         child: Container(
@@ -840,13 +884,22 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                             border: Border(bottom: BorderSide(color: isSel ? Colors.amber : Colors.transparent, width: 3)),
                           ),
                           alignment: Alignment.center,
-                          child: Text(
-                            _sections[index],
-                            style: TextStyle(
-                              color: isSel ? Colors.amber : Colors.white70,
-                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                              fontSize: 12,
-                            ),
+                          child: Row(
+                            children: [
+                              Text(
+                                _sections[index],
+                                style: TextStyle(
+                                  color: isSel ? Colors.amber : Colors.white70,
+                                  fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if (_hasSectionalTiming && !isSel)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 4.0),
+                                  child: Icon(Icons.lock, size: 12, color: Colors.amber),
+                                ),
+                            ],
                           ),
                         ),
                       );
@@ -876,7 +929,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 Text('No. ${index + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
                                 Row(
                                   children: [
-                                    // ⏱️ Testbook-Style Live Per-Question Stopwatch Badge
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
