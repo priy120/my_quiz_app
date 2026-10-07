@@ -75,18 +75,11 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
             inlineMath: [['\$', '\$'], ['\\\\(', '\\\\)']],
             displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
           },
-          chtml: {
-            scale: 0.95
-          },
-          svg: { 
-            scale: 0.95,
-            fontCache: 'global' 
-          },
+          chtml: { scale: 0.95 },
+          svg: { scale: 0.95, fontCache: 'global' },
           startup: {
             pageReady: () => {
-              return MathJax.startup.defaultPageReady().then(() => {
-                sendHeight();
-              });
+              return MathJax.startup.defaultPageReady().then(() => { sendHeight(); });
             }
           }
         };
@@ -111,8 +104,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           font-size: ${size}px !important;
           font-weight: 600 !important;
           color: #000000 !important;
-          margin: 0;
-          padding: 0;
+          margin: 0; padding: 0;
           background-color: transparent;
           user-select: none;
           word-wrap: break-word;
@@ -120,19 +112,14 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           visibility: hidden;
           -webkit-font-smoothing: antialiased;
         }
-        img {
-          max-width: 100%;
-          height: auto;
-        }
+        img { max-width: 100%; height: auto; }
         .mjx-chtml, .MathJax, mtd, mtr, span {
           color: #000000 !important;
           font-weight: 600 !important;
         }
       </style>
     </head>
-    <body>
-      $content
-    </body>
+    <body>$content</body>
     </html>
     ''';
   }
@@ -174,7 +161,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late PageController _pageController;
   int currentQuestionIndex = 0;
   
-  // Timers
   Timer? _masterTimer;
   Timer? _sectionTimer;
   Timer? _questionTimer;
@@ -183,7 +169,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   int _currentQuestionSeconds = 0;
   late List<int> questionTimesInSeconds;
 
-  // Dynamic Sectional Timing Configuration
   bool _hasSectionalTiming = false;
   Map<String, int> _sectionDurationsInSeconds = {};
   int _currentSectionSecondsRemaining = 0;
@@ -212,6 +197,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     );
   }
 
+  // 1. Connectivity Check
   Future<void> _checkInternetAndFetch() async {
     var connectivityResult = await (Connectivity().checkConnectivity());
     if (connectivityResult.contains(ConnectivityResult.none)) {
@@ -240,6 +226,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     _fetchQuestionsAndSavedState();
   }
 
+  // 2. Data-Saver Hybrid Fetch
   Future<void> _fetchQuestionsAndSavedState() async {
     try {
       final testDoc = await FirebaseFirestore.instance
@@ -262,13 +249,35 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         }
       }
 
-      // Standard Fetch - Auto manages Cache + Live Server seamlessly
-      final snapshot = await FirebaseFirestore.instance
-          .collection('mock_tests')
-          .doc(widget.testId)
-          .collection('questions')
-          .orderBy('questionNo', descending: false)
-          .get();
+      QuerySnapshot<Map<String, dynamic>> snapshot;
+      
+      // Step A: Pehle local CACHE se load karne ki koshish karein (Quota Read Save karne ke liye)
+      try {
+        snapshot = await FirebaseFirestore.instance
+            .collection('mock_tests')
+            .doc(widget.testId)
+            .collection('questions')
+            .orderBy('questionNo', descending: false)
+            .get(const GetOptions(source: Source.cache));
+
+        if (snapshot.docs.isEmpty) {
+          // Cache khali hone par Server se fetch karein
+          snapshot = await FirebaseFirestore.instance
+              .collection('mock_tests')
+              .doc(widget.testId)
+              .collection('questions')
+              .orderBy('questionNo', descending: false)
+              .get(const GetOptions(source: Source.server));
+        }
+      } catch (e) {
+        // Fallback to default fetch if cache query throws error
+        snapshot = await FirebaseFirestore.instance
+            .collection('mock_tests')
+            .doc(widget.testId)
+            .collection('questions')
+            .orderBy('questionNo', descending: false)
+            .get();
+      }
 
       if (snapshot.docs.isNotEmpty) {
         questions = snapshot.docs.map((doc) => doc.data()).toList();
