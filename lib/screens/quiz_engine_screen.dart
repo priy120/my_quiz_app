@@ -24,7 +24,7 @@ class MathJaxView extends StatefulWidget {
 
 class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
-  double _contentHeight = 80.0;
+  double _contentHeight = 60.0;
   bool _isReady = false;
 
   @override
@@ -43,7 +43,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           if (parsedHeight != null && parsedHeight > 0) {
             if (mounted) {
               setState(() {
-                _contentHeight = parsedHeight + 6;
+                _contentHeight = parsedHeight + 12; // Extra buffer to avoid cutoff
                 _isReady = true;
               });
             }
@@ -59,6 +59,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
     if (oldWidget.content != widget.content) {
       setState(() {
         _isReady = false;
+        _contentHeight = 60.0;
       });
       _controller.loadHtmlString(_buildHtml(widget.content, widget.fontSize));
     }
@@ -78,11 +79,10 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
             displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
           },
           chtml: { scale: 0.95 },
-          svg: { scale: 0.95, fontCache: 'global' },
           startup: {
             pageReady: () => {
               return MathJax.startup.defaultPageReady().then(() => {
-                setTimeout(sendHeight, 30);
+                sendHeight();
               });
             }
           }
@@ -106,7 +106,6 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           margin: 0 !important;
           padding: 0 !important;
           background-color: transparent !important;
-          overflow: hidden !important;
         }
         body {
           font-family: 'Poppins', sans-serif !important;
@@ -133,15 +132,9 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 100),
-      constraints: const BoxConstraints(minHeight: 50.0),
+    return SizedBox(
       height: _contentHeight,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 100),
-        opacity: _isReady ? 1.0 : 0.0,
-        child: WebViewWidget(controller: _controller),
-      ),
+      child: WebViewWidget(controller: _controller),
     );
   }
 }
@@ -1041,6 +1034,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min, // 👈 Height auto-adjust karega
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1084,6 +1078,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 padding: const EdgeInsets.all(14.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min, // 👈 Extra space hatane ke liye
                                   children: [
                                     _buildMathOrText(displayQText, fontSize: 14),
                                     if (qImageUrl != null && qImageUrl.toString().trim().isNotEmpty) ...[
@@ -1107,6 +1102,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                             ),
                             const SizedBox(height: 12),
                             Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: List.generate(displayOptions.length, (optIdx) {
                                 final isSelected = selectedAnswers[index] == optIdx;
                                 String? optImg;
@@ -1153,6 +1149,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 );
                               }),
                             ),
+                            const SizedBox(height: 80), // 👈 Bottom buttons overlay fix
                           ],
                         ),
                       );
