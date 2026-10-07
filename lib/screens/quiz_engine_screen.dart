@@ -24,7 +24,7 @@ class MathJaxView extends StatefulWidget {
 
 class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
-  double _contentHeight = 50.0;
+  double _contentHeight = 70.0;
   bool _isReady = false;
 
   @override
@@ -43,7 +43,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           if (parsedHeight != null && parsedHeight > 0) {
             if (mounted) {
               setState(() {
-                _contentHeight = parsedHeight + 4;
+                _contentHeight = parsedHeight + 8;
                 _isReady = true;
               });
             }
@@ -57,7 +57,10 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
   void didUpdateWidget(covariant MathJaxView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.content != widget.content) {
-      setState(() => _isReady = false);
+      setState(() {
+        _isReady = false;
+        _contentHeight = 70.0;
+      });
       _controller.loadHtmlString(_buildHtml(widget.content, widget.fontSize));
     }
   }
@@ -79,7 +82,9 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           svg: { scale: 0.95, fontCache: 'global' },
           startup: {
             pageReady: () => {
-              return MathJax.startup.defaultPageReady().then(() => { sendHeight(); });
+              return MathJax.startup.defaultPageReady().then(() => {
+                setTimeout(sendHeight, 50);
+              });
             }
           }
         };
@@ -99,13 +104,17 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
       </script>
       <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       <style>
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background-color: transparent !important;
+          overflow: hidden !important;
+        }
         body {
           font-family: 'Poppins', sans-serif !important;
           font-size: ${size}px !important;
           font-weight: 600 !important;
           color: #000000 !important;
-          margin: 0; padding: 0;
-          background-color: transparent;
           user-select: none;
           word-wrap: break-word;
           overflow-wrap: break-word;
@@ -127,8 +136,8 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
+    return Container(
+      constraints: const BoxConstraints(minHeight: 50.0),
       height: _contentHeight,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 150),
@@ -197,7 +206,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     );
   }
 
-  // 1. Connectivity Check
   Future<void> _checkInternetAndFetch() async {
     var connectivityResult = await (Connectivity().checkConnectivity());
     if (connectivityResult.contains(ConnectivityResult.none)) {
@@ -226,7 +234,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     _fetchQuestionsAndSavedState();
   }
 
-  // 2. Data-Saver Hybrid Fetch
   Future<void> _fetchQuestionsAndSavedState() async {
     try {
       final testDoc = await FirebaseFirestore.instance
@@ -251,7 +258,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
       QuerySnapshot<Map<String, dynamic>> snapshot;
       
-      // Step A: Pehle local CACHE se load karne ki koshish karein (Quota Read Save karne ke liye)
       try {
         snapshot = await FirebaseFirestore.instance
             .collection('mock_tests')
@@ -261,7 +267,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             .get(const GetOptions(source: Source.cache));
 
         if (snapshot.docs.isEmpty) {
-          // Cache khali hone par Server se fetch karein
           snapshot = await FirebaseFirestore.instance
               .collection('mock_tests')
               .doc(widget.testId)
@@ -270,7 +275,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               .get(const GetOptions(source: Source.server));
         }
       } catch (e) {
-        // Fallback to default fetch if cache query throws error
         snapshot = await FirebaseFirestore.instance
             .collection('mock_tests')
             .doc(widget.testId)
