@@ -23,6 +23,7 @@ class MathJaxView extends StatefulWidget {
 
 class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
+  double _contentHeight = 60.0; // Dynamic height state
 
   @override
   bool get wantKeepAlive => true;
@@ -33,6 +34,17 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
+      ..addJavaScriptChannel(
+        'HeightChannel',
+        onMessageReceived: (JavaScriptMessage message) {
+          double? parsedHeight = double.tryParse(message.message);
+          if (parsedHeight != null && parsedHeight > 0) {
+            setState(() {
+              _contentHeight = parsedHeight + 8; // Extra padding
+            });
+          }
+        },
+      )
       ..loadHtmlString(_buildHtml(widget.content, widget.fontSize));
   }
 
@@ -56,23 +68,52 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
             inlineMath: [['\$', '\$'], ['\\\\(', '\\\\)']],
             displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
           },
-          svg: { fontCache: 'global' }
+          chtml: {
+            scale: 0.88 // 👈 Normal Poppins font size se match karne ke liye
+          },
+          svg: { 
+            scale: 0.88,
+            fontCache: 'global' 
+          },
+          startup: {
+            pageReady: () => {
+              return MathJax.startup.defaultPageReady().then(() => {
+                setTimeout(sendHeight, 100);
+              });
+            }
+          }
         };
+
+        function sendHeight() {
+          if (window.HeightChannel) {
+            var height = document.body.scrollHeight || document.documentElement.scrollHeight;
+            window.HeightChannel.postMessage(height.toString());
+          }
+        }
       </script>
       <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       <style>
         body {
-          font-family: 'Poppins', sans-serif;
-          font-size: ${size}px;
+          font-family: 'Poppins', sans-serif !important;
+          font-size: ${size}px !important;
           color: #212121;
           margin: 0;
           padding: 0;
           background-color: transparent;
           user-select: none;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+        img {
+          max-width: 100%;
+          height: auto;
+        }
+        .mjx-chtml, .MathJax {
+          font-size: 100% !important;
         }
       </style>
     </head>
-    <body>
+    <body onload="sendHeight()">
       $content
     </body>
     </html>
@@ -83,7 +124,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
   Widget build(BuildContext context) {
     super.build(context);
     return SizedBox(
-      height: widget.fontSize * 3.8,
+      height: _contentHeight,
       child: WebViewWidget(controller: _controller),
     );
   }
@@ -373,13 +414,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     );
   }
 
-  // ⚡ PAGE CHANGE LISTENER WITH SECTION BOUNDARY PROTECTION
   void _onQuestionPageChanged(int index) {
     if (_hasSectionalTiming) {
       String currentSec = _sections[_currentSectionIndex];
       String targetSec = questions[index]['section'] ?? currentSec;
 
-      // Prevent sliding across section boundary
       if (currentSec != targetSec) {
         _pageController.jumpToPage(currentQuestionIndex);
         ScaffoldMessenger.of(context).showSnackBar(
