@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'sub_categories_screen.dart';
 import 'plans_screen.dart';
@@ -12,6 +13,8 @@ class ExamCategoriesScreen extends StatefulWidget {
 }
 
 class _ExamCategoriesScreenState extends State<ExamCategoriesScreen> {
+  bool _isOffline = false;
+
   final Map<String, String> _categoryLogos = const {
     'SSC': 'https://upload.wikimedia.org/wikipedia/commons/d/d4/Staff_Selection_Commission_Logo.png',
     'RAILWAYS': 'https://upload.wikimedia.org/wikipedia/en/thumb/4/45/Indian_Railways_logo.svg/1200px-Indian_Railways_logo.svg.png',
@@ -22,6 +25,42 @@ class _ExamCategoriesScreenState extends State<ExamCategoriesScreen> {
     'DEFENCE': 'https://upload.wikimedia.org/wikipedia/commons/5/53/Emblem_of_India.svg',
     'BANKING': 'https://upload.wikimedia.org/wikipedia/commons/c/cc/SBI-Logo.svg',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnectivity();
+  }
+
+  Future<void> _checkConnectivity() async {
+    var result = await Connectivity().checkConnectivity();
+    if (result.contains(ConnectivityResult.none)) {
+      if (mounted) {
+        setState(() => _isOffline = true);
+      }
+    } else {
+      if (mounted) {
+        setState(() => _isOffline = false);
+      }
+    }
+  }
+
+  Future<bool> _verifyInternetBeforeClick() async {
+    var result = await Connectivity().checkConnectivity();
+    if (result.contains(ConnectivityResult.none)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("No Internet Connection! Please connect to internet to proceed."),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return false;
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,104 +75,140 @@ class _ExamCategoriesScreenState extends State<ExamCategoriesScreen> {
         ),
       ),
       backgroundColor: const Color(0xFFF4F6FA),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('exam_categories').snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          
-          final docs = snapshot.data!.docs;
-          final List<String> categories = docs.isNotEmpty
-              ? docs.map((d) => d.id.toUpperCase()).toList()
-              : ['SSC', 'RAILWAYS', 'IB', 'UPPPBP', 'RPF', 'DELHI POLICE', 'DEFENCE', 'BANKING'];
-
-          return Column(
-            children: [
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.8,
+      body: _isOffline
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.wifi_off_rounded, size: 60, color: Colors.grey),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No Internet Connection',
+                    style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
-                  itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    final catName = categories[index];
-                    final logoUrl = _categoryLogos[catName] ?? 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
-                    
-                    return InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SubCategoriesScreen(categoryName: catName),
-                          ),
-                        );
-                      },
-                      child: Container(
+                  const SizedBox(height: 6),
+                  Text(
+                    'Connect to mobile data or Wi-Fi to load test categories.',
+                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
+                    onPressed: _checkConnectivity,
+                    child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                  )
+                ],
+              ),
+            )
+          : StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('exam_categories').snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                
+                final docs = snapshot.data!.docs;
+                final List<String> categories = docs.isNotEmpty
+                    ? docs.map((d) => d.id.toUpperCase()).toList()
+                    : ['SSC', 'RAILWAYS', 'IB', 'UPPPBP', 'RPF', 'DELHI POLICE', 'DEFENCE', 'BANKING'];
+
+                return Column(
+                  children: [
+                    Expanded(
+                      child: GridView.builder(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 6,
-                            )
-                          ],
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.8,
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                catName,
-                                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13),
+                        itemCount: categories.length,
+                        itemBuilder: (context, index) {
+                          final catName = categories[index];
+                          final logoUrl = _categoryLogos[catName] ?? 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
+                          
+                          return InkWell(
+                            onTap: () async {
+                              bool hasNet = await _verifyInternetBeforeClick();
+                              if (!hasNet) return;
+
+                              if (context.mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => SubCategoriesScreen(categoryName: catName),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 6,
+                                  )
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      catName,
+                                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                  ),
+                                  Image.network(
+                                    logoUrl,
+                                    width: 34,
+                                    height: 34,
+                                    errorBuilder: (_, __, ___) => const Icon(Icons.school, color: Colors.indigo),
+                                  ),
+                                ],
                               ),
                             ),
-                            Image.network(
-                              logoUrl,
-                              width: 34,
-                              height: 34,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.school, color: Colors.indigo),
-                            ),
-                          ],
+                          );
+                        },
+                      ),
+                    ),
+                    
+                    // Bottom Buy Now Pass Button
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      color: const Color(0xFF1A237E),
+                      child: SafeArea(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () async {
+                            bool hasNet = await _verifyInternetBeforeClick();
+                            if (!hasNet) return;
+
+                            if (context.mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const PlansScreen()),
+                              );
+                            }
+                          },
+                          child: const Text(
+                            'Buy Now Pass',
+                            style: TextStyle(color: Color(0xFF1A237E), fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-              
-              // Bottom Buy Now Pass Button
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                color: const Color(0xFF1A237E),
-                child: SafeArea(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const PlansScreen()),
-                      );
-                    },
-                    child: const Text(
-                      'Buy Now Pass',
-                      style: TextStyle(color: Color(0xFF1A237E), fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+                  ],
+                );
+              },
+            ),
     );
   }
 }
