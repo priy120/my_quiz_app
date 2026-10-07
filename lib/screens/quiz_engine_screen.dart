@@ -62,6 +62,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
     <html>
     <head>
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
       <script>
         MathJax = {
           tex: {
@@ -69,10 +70,10 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
             displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
           },
           chtml: {
-            scale: 0.88 // 👈 Normal Poppins font size se match karne ke liye
+            scale: 0.92
           },
           svg: { 
-            scale: 0.88,
+            scale: 0.92,
             fontCache: 'global' 
           },
           startup: {
@@ -96,20 +97,23 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
         body {
           font-family: 'Poppins', sans-serif !important;
           font-size: ${size}px !important;
-          color: #212121;
+          font-weight: 600 !important;
+          color: #000000 !important;
           margin: 0;
           padding: 0;
           background-color: transparent;
           user-select: none;
           word-wrap: break-word;
           overflow-wrap: break-word;
+          -webkit-font-smoothing: antialiased;
         }
         img {
           max-width: 100%;
           height: auto;
         }
-        .mjx-chtml, .MathJax {
-          font-size: 100% !important;
+        .mjx-chtml, .MathJax, mtd, mtr, span {
+          color: #000000 !important;
+          font-weight: 600 !important;
         }
       </style>
     </head>
@@ -391,27 +395,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
   }
 
-  bool _hasMathFormula(String text) {
-    return text.contains(r'\') ||
-        text.contains(r'$') ||
-        text.contains(r'\frac') ||
-        text.contains(r'\sqrt') ||
-        text.contains(r'\int') ||
-        text.contains(r'\pi') ||
-        text.contains(r'\theta');
-  }
-
   Widget _buildMathOrText(String content, {double fontSize = 14}) {
     if (content.trim().isEmpty) return const SizedBox();
 
-    if (_hasMathFormula(content)) {
-      return MathJaxView(content: content, fontSize: fontSize);
-    }
-
-    return Text(
-      content,
-      style: GoogleFonts.poppins(fontSize: fontSize, fontWeight: FontWeight.w600, color: Colors.black87),
-    );
+    // Direct MathJax rendering for exact uniform font across all questions
+    return MathJaxView(content: content, fontSize: fontSize);
   }
 
   void _onQuestionPageChanged(int index) {
