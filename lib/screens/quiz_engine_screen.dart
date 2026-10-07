@@ -23,7 +23,8 @@ class MathJaxView extends StatefulWidget {
 
 class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
-  double _contentHeight = 60.0; // Dynamic height state
+  double _contentHeight = 50.0; // Fixed smooth initial height
+  bool _isReady = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -39,9 +40,12 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
         onMessageReceived: (JavaScriptMessage message) {
           double? parsedHeight = double.tryParse(message.message);
           if (parsedHeight != null && parsedHeight > 0) {
-            setState(() {
-              _contentHeight = parsedHeight + 8; // Extra padding
-            });
+            if (mounted) {
+              setState(() {
+                _contentHeight = parsedHeight + 4;
+                _isReady = true; // Reveal after formatting done to avoid visual flicker
+              });
+            }
           }
         },
       )
@@ -52,6 +56,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
   void didUpdateWidget(covariant MathJaxView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.content != widget.content) {
+      setState(() => _isReady = false);
       _controller.loadHtmlString(_buildHtml(widget.content, widget.fontSize));
     }
   }
@@ -70,16 +75,16 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
             displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
           },
           chtml: {
-            scale: 0.92
+            scale: 0.95
           },
           svg: { 
-            scale: 0.92,
+            scale: 0.95,
             fontCache: 'global' 
           },
           startup: {
             pageReady: () => {
               return MathJax.startup.defaultPageReady().then(() => {
-                setTimeout(sendHeight, 100);
+                sendHeight();
               });
             }
           }
@@ -87,8 +92,14 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
 
         function sendHeight() {
           if (window.HeightChannel) {
-            var height = document.body.scrollHeight || document.documentElement.scrollHeight;
+            var body = document.body;
+            var html = document.documentElement;
+            var height = Math.max(
+              body.scrollHeight, body.offsetHeight, 
+              html.clientHeight, html.scrollHeight, html.offsetHeight
+            );
             window.HeightChannel.postMessage(height.toString());
+            document.body.style.visibility = 'visible';
           }
         }
       </script>
@@ -105,6 +116,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           user-select: none;
           word-wrap: break-word;
           overflow-wrap: break-word;
+          visibility: hidden; /* Hide raw content until MathJax formats completely */
           -webkit-font-smoothing: antialiased;
         }
         img {
@@ -117,7 +129,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
         }
       </style>
     </head>
-    <body onload="sendHeight()">
+    <body>
       $content
     </body>
     </html>
@@ -127,9 +139,14 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return SizedBox(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
       height: _contentHeight,
-      child: WebViewWidget(controller: _controller),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: _isReady ? 1.0 : 0.0,
+        child: WebViewWidget(controller: _controller),
+      ),
     );
   }
 }
@@ -397,8 +414,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   Widget _buildMathOrText(String content, {double fontSize = 14}) {
     if (content.trim().isEmpty) return const SizedBox();
-
-    // Direct MathJax rendering for exact uniform font across all questions
     return MathJaxView(content: content, fontSize: fontSize);
   }
 
