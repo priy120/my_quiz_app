@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
@@ -23,7 +24,7 @@ class MathJaxView extends StatefulWidget {
 
 class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
-  double _contentHeight = 50.0; // Fixed smooth initial height
+  double _contentHeight = 50.0;
   bool _isReady = false;
 
   @override
@@ -43,7 +44,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
             if (mounted) {
               setState(() {
                 _contentHeight = parsedHeight + 4;
-                _isReady = true; // Reveal after formatting done to avoid visual flicker
+                _isReady = true;
               });
             }
           }
@@ -116,7 +117,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           user-select: none;
           word-wrap: break-word;
           overflow-wrap: break-word;
-          visibility: hidden; /* Hide raw content until MathJax formats completely */
+          visibility: hidden;
           -webkit-font-smoothing: antialiased;
         }
         img {
@@ -201,7 +202,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
-    _fetchQuestionsAndSavedState();
+    _checkInternetAndFetch();
 
     UnityAds.load(
       placementId: 'BP_Interstitial_Android',
@@ -209,6 +210,34 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       onFailed: (placementId, error, message) =>
           debugPrint('Quiz Interstitial Load Failed: $message'),
     );
+  }
+
+  Future<void> _checkInternetAndFetch() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult.contains(ConnectivityResult.none)) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('Internet Connection Required'),
+            content: const Text('Is test ko access karne ke liye active internet connection zaroori hai.'),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: const Text('OK'),
+              )
+            ],
+          ),
+        );
+      }
+      return;
+    }
+    
+    _fetchQuestionsAndSavedState();
   }
 
   Future<void> _fetchQuestionsAndSavedState() async {
@@ -233,12 +262,24 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         }
       }
 
-      final snapshot = await FirebaseFirestore.instance
-          .collection('mock_tests')
-          .doc(widget.testId)
-          .collection('questions')
-          .orderBy('questionNo', descending: false)
-          .get();
+      QuerySnapshot<Map<String, dynamic>> snapshot;
+      try {
+        // Step 1: Read from Cache First to save Daily Firestore Reads Limit
+        snapshot = await FirebaseFirestore.instance
+            .collection('mock_tests')
+            .doc(widget.testId)
+            .collection('questions')
+            .orderBy('questionNo', descending: false)
+            .get(const GetOptions(source: Source.cache));
+      } catch (e) {
+        // Step 2: If not in Cache (First time load), fetch from Live Server
+        snapshot = await FirebaseFirestore.instance
+            .collection('mock_tests')
+            .doc(widget.testId)
+            .collection('questions')
+            .orderBy('questionNo', descending: false)
+            .get(const GetOptions(source: Source.server));
+      }
 
       if (snapshot.docs.isNotEmpty) {
         questions = snapshot.docs.map((doc) => doc.data()).toList();
