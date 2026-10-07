@@ -24,7 +24,7 @@ class MathJaxView extends StatefulWidget {
 
 class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
-  double _contentHeight = 70.0;
+  double _contentHeight = 80.0;
   bool _isReady = false;
 
   @override
@@ -43,7 +43,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           if (parsedHeight != null && parsedHeight > 0) {
             if (mounted) {
               setState(() {
-                _contentHeight = parsedHeight + 8;
+                _contentHeight = parsedHeight + 6;
                 _isReady = true;
               });
             }
@@ -59,7 +59,6 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
     if (oldWidget.content != widget.content) {
       setState(() {
         _isReady = false;
-        _contentHeight = 70.0;
       });
       _controller.loadHtmlString(_buildHtml(widget.content, widget.fontSize));
     }
@@ -83,7 +82,7 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           startup: {
             pageReady: () => {
               return MathJax.startup.defaultPageReady().then(() => {
-                setTimeout(sendHeight, 50);
+                setTimeout(sendHeight, 30);
               });
             }
           }
@@ -98,7 +97,6 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
               html.clientHeight, html.scrollHeight, html.offsetHeight
             );
             window.HeightChannel.postMessage(height.toString());
-            document.body.style.visibility = 'visible';
           }
         }
       </script>
@@ -118,7 +116,6 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           user-select: none;
           word-wrap: break-word;
           overflow-wrap: break-word;
-          visibility: hidden;
           -webkit-font-smoothing: antialiased;
         }
         img { max-width: 100%; height: auto; }
@@ -136,11 +133,12 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 100),
       constraints: const BoxConstraints(minHeight: 50.0),
       height: _contentHeight,
       child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 150),
+        duration: const Duration(milliseconds: 100),
         opacity: _isReady ? 1.0 : 0.0,
         child: WebViewWidget(controller: _controller),
       ),
@@ -257,7 +255,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       }
 
       QuerySnapshot<Map<String, dynamic>> snapshot;
-      
       try {
         snapshot = await FirebaseFirestore.instance
             .collection('mock_tests')
