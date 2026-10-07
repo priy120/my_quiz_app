@@ -18,6 +18,8 @@ class MathJaxView extends StatefulWidget {
 
 class _MathJaxViewState extends State<MathJaxView> {
   late WebViewController _controller;
+  double _contentHeight = 50.0;
+  bool _isReady = false;
 
   @override
   void initState() {
@@ -25,6 +27,20 @@ class _MathJaxViewState extends State<MathJaxView> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
+      ..addJavaScriptChannel(
+        'HeightChannel',
+        onMessageReceived: (JavaScriptMessage message) {
+          double? parsedHeight = double.tryParse(message.message);
+          if (parsedHeight != null && parsedHeight > 0) {
+            if (mounted) {
+              setState(() {
+                _contentHeight = parsedHeight + 6;
+                _isReady = true;
+              });
+            }
+          }
+        },
+      )
       ..loadHtmlString(_buildHtml(widget.content, widget.fontSize));
   }
 
@@ -32,6 +48,7 @@ class _MathJaxViewState extends State<MathJaxView> {
   void didUpdateWidget(covariant MathJaxView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.content != widget.content) {
+      setState(() => _isReady = false);
       _controller.loadHtmlString(_buildHtml(widget.content, widget.fontSize));
     }
   }
@@ -42,25 +59,65 @@ class _MathJaxViewState extends State<MathJaxView> {
     <html>
     <head>
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
       <script>
         MathJax = {
           tex: {
             inlineMath: [['\$', '\$'], ['\\\\(', '\\\\)']],
             displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
           },
-          svg: { fontCache: 'global' }
+          chtml: {
+            scale: 0.92
+          },
+          svg: { 
+            scale: 0.92,
+            fontCache: 'global' 
+          },
+          startup: {
+            pageReady: () => {
+              return MathJax.startup.defaultPageReady().then(() => {
+                sendHeight();
+              });
+            }
+          }
         };
+
+        function sendHeight() {
+          if (window.HeightChannel) {
+            var body = document.body;
+            var html = document.documentElement;
+            var height = Math.max(
+              body.scrollHeight, body.offsetHeight, 
+              html.clientHeight, html.scrollHeight, html.offsetHeight
+            );
+            window.HeightChannel.postMessage(height.toString());
+            document.body.style.visibility = 'visible';
+          }
+        }
       </script>
       <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       <style>
         body {
-          font-family: 'Poppins', sans-serif;
-          font-size: ${size}px;
-          color: #212121;
+          font-family: 'Poppins', sans-serif !important;
+          font-size: ${size}px !important;
+          font-weight: 600 !important;
+          color: #000000 !important;
           margin: 0;
           padding: 0;
           background-color: transparent;
           user-select: none;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          visibility: hidden;
+          -webkit-font-smoothing: antialiased;
+        }
+        img {
+          max-width: 100%;
+          height: auto;
+        }
+        .mjx-chtml, .MathJax, mtd, mtr, span {
+          color: #000000 !important;
+          font-weight: 600 !important;
         }
       </style>
     </head>
@@ -73,9 +130,14 @@ class _MathJaxViewState extends State<MathJaxView> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: widget.fontSize * 3.8,
-      child: WebViewWidget(controller: _controller),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      height: _contentHeight,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: _isReady ? 1.0 : 0.0,
+        child: WebViewWidget(controller: _controller),
+      ),
     );
   }
 }
@@ -146,27 +208,9 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
   }
 
-  bool _hasMathFormula(String text) {
-    return text.contains(r'\') ||
-        text.contains(r'$') ||
-        text.contains(r'\frac') ||
-        text.contains(r'\sqrt') ||
-        text.contains(r'\int') ||
-        text.contains(r'\pi') ||
-        text.contains(r'\theta');
-  }
-
   Widget _buildMathOrText(String content, {double fontSize = 13}) {
     if (content.trim().isEmpty) return const SizedBox();
-
-    if (_hasMathFormula(content)) {
-      return MathJaxView(content: content, fontSize: fontSize);
-    }
-
-    return Text(
-      content,
-      style: GoogleFonts.poppins(fontSize: fontSize, fontWeight: FontWeight.normal, color: Colors.black87),
-    );
+    return MathJaxView(content: content, fontSize: fontSize);
   }
 
   Widget _buildTestbookTimeBadge(int userTime, int avgTime, int topperTime) {
@@ -360,7 +404,6 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                                         ),
                                       ],
                                       
-                                      // Testbook Style Time Metrics Comparison Badge
                                       if (!_isReattemptMode)
                                         _buildTestbookTimeBadge(userTime, avgTime, topperTime),
 
