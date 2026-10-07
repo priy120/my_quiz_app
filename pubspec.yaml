@@ -17,6 +17,9 @@ dependencies:
   cloud_firestore: ^4.15.8
   firebase_database: ^10.4.9
 
+  # Network Check (Internet Required)
+  connectivity_plus: ^6.0.0
+
   # Official Google Webview for Real MathJax
   webview_flutter: ^4.7.0
 
@@ -34,7 +37,7 @@ dependencies:
   # UI Design
   google_fonts: ^6.1.0
   cupertino_icons: ^1.0.6
-  
+
   share_plus: ^10.0.0
   path_provider: ^2.1.0
   shared_preferences: ^2.2.2
@@ -43,6 +46,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: "^0.13.1"
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icon/app_logo.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
