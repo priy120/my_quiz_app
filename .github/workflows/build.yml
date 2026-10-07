@@ -22,6 +22,16 @@ jobs:
         with:
           flutter-version: '3.19.6'
 
+      - name: Fix Android V2 Embedding & Config
+        run: |
+          echo "flutter.minSdkVersion=21" >> android/local.properties
+          echo "android.useAndroidX=true" >> android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
+
+      - name: Inject OTA Install Permission into AndroidManifest
+        run: |
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>' android/app/src/main/AndroidManifest.xml
+
       - name: Get Dependencies
         run: flutter pub get
 
