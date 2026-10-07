@@ -262,24 +262,13 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         }
       }
 
-      QuerySnapshot<Map<String, dynamic>> snapshot;
-      try {
-        // Step 1: Read from Cache First to save Daily Firestore Reads Limit
-        snapshot = await FirebaseFirestore.instance
-            .collection('mock_tests')
-            .doc(widget.testId)
-            .collection('questions')
-            .orderBy('questionNo', descending: false)
-            .get(const GetOptions(source: Source.cache));
-      } catch (e) {
-        // Step 2: If not in Cache (First time load), fetch from Live Server
-        snapshot = await FirebaseFirestore.instance
-            .collection('mock_tests')
-            .doc(widget.testId)
-            .collection('questions')
-            .orderBy('questionNo', descending: false)
-            .get(const GetOptions(source: Source.server));
-      }
+      // Standard Fetch - Auto manages Cache + Live Server seamlessly
+      final snapshot = await FirebaseFirestore.instance
+          .collection('mock_tests')
+          .doc(widget.testId)
+          .collection('questions')
+          .orderBy('questionNo', descending: false)
+          .get();
 
       if (snapshot.docs.isNotEmpty) {
         questions = snapshot.docs.map((doc) => doc.data()).toList();
