@@ -34,10 +34,12 @@ dependencies:
   # Unity Ads Package
   unity_ads_plugin: ^0.4.0
   
-  flutter_math_fork: ^0.7.2
-  # UI Design
+
+  
+  # UI & HTML Render
   google_fonts: ^6.1.0
   cupertino_icons: ^1.0.6
+  flutter_widget_from_html: ^0.15.2
 
   share_plus: ^10.0.0
   path_provider: ^2.1.0
