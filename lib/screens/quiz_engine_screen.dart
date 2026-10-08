@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'analysis_screen.dart';
 import 'group_study_screen.dart';
@@ -12,12 +12,12 @@ import '../services/group_service.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
-/// Ultra-Fast Native Math & Plain Text Renderer (No WebView, No Jump, No Lag)
-class FastMathTextRender extends StatelessWidget {
+/// Fast & Light-weight HTML/Text Renderer (No Webview, No Jump, No Lag)
+class FastHtmlTextRender extends StatelessWidget {
   final String content;
   final double fontSize;
 
-  const FastMathTextRender({
+  const FastHtmlTextRender({
     super.key,
     required this.content,
     this.fontSize = 14,
@@ -27,74 +27,20 @@ class FastMathTextRender extends StatelessWidget {
   Widget build(BuildContext context) {
     if (content.trim().isEmpty) return const SizedBox();
 
-    // Regex to extract $...$ or $$...$$ LaTeX math expressions
-    final RegExp mathRegex = RegExp(r'\$\$(.*?)\$\$|\$(.*?)\$');
-    final matches = mathRegex.allMatches(content);
-
-    if (matches.isEmpty) {
-      return Text(
-        content,
-        style: GoogleFonts.poppins(
-          fontSize: fontSize,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
-          height: 1.5,
-        ),
-      );
-    }
-
-    List<InlineSpan> spans = [];
-    int lastIndex = 0;
-
-    for (final match in matches) {
-      if (match.start > lastIndex) {
-        spans.add(
-          TextSpan(
-            text: content.substring(lastIndex, match.start),
-            style: GoogleFonts.poppins(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-              height: 1.5,
-            ),
-          ),
-        );
-      }
-
-      final mathText = match.group(1) ?? match.group(2) ?? '';
-      spans.add(
-        WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: Math.tex(
-            mathText,
-            textStyle: TextStyle(fontSize: fontSize, color: Colors.black),
-            onErrorFallback: (err) => Text(
-              '\$$mathText\$',
-              style: TextStyle(fontSize: fontSize, color: Colors.red),
-            ),
-          ),
-        ),
-      );
-
-      lastIndex = match.end;
-    }
-
-    if (lastIndex < content.length) {
-      spans.add(
-        TextSpan(
-          text: content.substring(lastIndex),
-          style: GoogleFonts.poppins(
-            fontSize: fontSize,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-            height: 1.5,
-          ),
-        ),
-      );
-    }
-
-    return RichText(
-      text: TextSpan(children: spans),
+    return HtmlWidget(
+      content,
+      textStyle: GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+        height: 1.4,
+      ),
+      customStylesBuilder: (element) {
+        if (element.localName == 'p') {
+          return {'margin': '0', 'padding': '0'};
+        }
+        return null;
+      },
     );
   }
 }
@@ -365,7 +311,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     }
   }
 
-  /// Live Question Timer
   void _startQuestionTimer() {
     _questionTimer?.cancel();
     if (questions.isEmpty) return;
@@ -1047,7 +992,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    FastMathTextRender(
+                                    FastHtmlTextRender(
                                       content: displayQText,
                                       fontSize: 14,
                                     ),
@@ -1106,7 +1051,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                           ),
                                         ),
                                         Expanded(
-                                          child: FastMathTextRender(
+                                          child: FastHtmlTextRender(
                                             content: displayOptions[optIdx],
                                             fontSize: 13,
                                           ),
