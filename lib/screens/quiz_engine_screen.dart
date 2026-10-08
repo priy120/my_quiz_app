@@ -82,8 +82,12 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return SizedBox(
-      height: widget.fontSize * 3.8,
+    // Dynamic Height Constraints to Prevent Image & MathJax Text Cutting
+    return Container(
+      constraints: BoxConstraints(
+        minHeight: widget.fontSize * 2.5,
+        maxHeight: 400, // Room for graphs, formulas & large texts
+      ),
       child: WebViewWidget(controller: _controller),
     );
   }
@@ -865,7 +869,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       final List<dynamic>? optImages = qData['optionImages'];
 
                       return SingleChildScrollView(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 120.0), // Padding ensures bottom options never cut
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
