@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
@@ -12,136 +11,66 @@ import '../services/group_service.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
-/// Instant & Jump-Free Math Renderer using KaTeX Engine (Auto-wraps \sqrt, \frac etc.)
-class KaTeXMathView extends StatefulWidget {
+class MathJaxView extends StatefulWidget {
   final String content;
   final double fontSize;
 
-  const KaTeXMathView({
-    super.key,
-    required this.content,
-    this.fontSize = 14,
-  });
+  const MathJaxView({super.key, required this.content, this.fontSize = 14});
 
   @override
-  State<KaTeXMathView> createState() => _KaTeXMathViewState();
+  State<MathJaxView> createState() => _MathJaxViewState();
 }
 
-class _KaTeXMathViewState extends State<KaTeXMathView> with AutomaticKeepAliveClientMixin {
+class _MathJaxViewState extends State<MathJaxView> {
   late WebViewController _controller;
-  double _contentHeight = 45.0;
-
-  @override
-  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    _initController();
-  }
-
-  void _initController() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
-      ..addJavaScriptChannel(
-        'HeightChannel',
-        onMessageReceived: (JavaScriptMessage message) {
-          double? parsedHeight = double.tryParse(message.message);
-          if (parsedHeight != null && parsedHeight > 0) {
-            if (mounted && (_contentHeight - (parsedHeight + 8)).abs() > 2) {
-              setState(() {
-                _contentHeight = parsedHeight + 8;
-              });
-            }
-          }
-        },
-      )
-      ..loadHtmlString(_buildKaTeXHtml(widget.content, widget.fontSize));
+      ..loadHtmlString(_buildHtml(widget.content, widget.fontSize));
   }
 
   @override
-  void didUpdateWidget(covariant KaTeXMathView oldWidget) {
+  void didUpdateWidget(covariant MathJaxView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.content != widget.content) {
-      _controller.loadHtmlString(_buildKaTeXHtml(widget.content, widget.fontSize));
+      _controller.loadHtmlString(_buildHtml(widget.content, widget.fontSize));
     }
   }
 
-  /// Ensures un-escaped LaTeX formulas (\sqrt, \frac, etc.) get converted to math
-  String _prepareMathContent(String raw) {
-    String text = raw;
-
-    // Fast check: Agar raw text me \sqrt, \frac, \times etc. hain par $ $ se wrap nahi hain
-    if (text.contains(RegExp(r'\\[a-zA-Z]+')) && !text.contains('\$')) {
-      text = text.replaceAllMapped(
-        RegExp(r'(\d*\s*\\[a-zA-Z]+\{[^}]+\}(\{[^}]+\})*)'), 
-        (match) => '\$${match.group(1)}\$'
-      );
-    }
-
-    return text;
-  }
-
-  String _buildKaTeXHtml(String rawContent, double size) {
-    final formattedContent = _prepareMathContent(rawContent);
-
+  String _buildHtml(String content, double size) {
     return '''
     <!DOCTYPE html>
     <html>
     <head>
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-      <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-      <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
-      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+      <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['\$', '\$'], ['\\\\(', '\\\\)']],
+            displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
+          },
+          svg: { fontCache: 'global' }
+        };
+      </script>
+      <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       <style>
-        html, body {
-          margin: 0 !important;
-          padding: 0 !important;
-          background-color: transparent !important;
-          overflow: hidden;
-        }
         body {
-          font-family: 'Poppins', sans-serif !important;
-          font-size: ${size}px !important;
-          font-weight: 600 !important;
-          color: #1A1A1A !important;
+          font-family: 'Poppins', sans-serif;
+          font-size: ${size}px;
+          color: #212121;
+          margin: 0;
+          padding: 0;
+          background-color: transparent;
           user-select: none;
-          word-wrap: break-word;
-          line-height: 1.5;
         }
-        .container {
-          padding: 2px 0;
-        }
-        .katex {
-          font-size: 1.1em !important;
-        }
-        img { max-width: 100%; height: auto; border-radius: 6px; margin-top: 8px; }
       </style>
     </head>
     <body>
-      <div class="container" id="content">$formattedContent</div>
-      <script>
-        document.addEventListener("DOMContentLoaded", function() {
-          renderMathInElement(document.getElementById("content"), {
-            delimiters: [
-              {left: "\$\$", right: "\$\$", display: true},
-              {left: "\$", right: "\$", display: false},
-              {left: "\\\\(", right: "\\\\)", display: false},
-              {left: "\\\\[", right: "\\\\]", display: true}
-            ],
-            throwOnError: false
-          });
-          
-          setTimeout(function() {
-            var height = document.getElementById("content").offsetHeight;
-            if (window.HeightChannel) {
-              window.HeightChannel.postMessage(height.toString());
-            }
-          }, 40);
-        });
-      </script>
+      $content
     </body>
     </html>
     ''';
@@ -149,9 +78,8 @@ class _KaTeXMathViewState extends State<KaTeXMathView> with AutomaticKeepAliveCl
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     return SizedBox(
-      height: _contentHeight,
+      height: widget.fontSize * 3.8,
       child: WebViewWidget(controller: _controller),
     );
   }
@@ -161,7 +89,7 @@ class QuizEngineScreen extends StatefulWidget {
   final String testId;
   final String testTitle;
   final bool isReattempt;
-  final String? groupCode;
+  final String? groupCode; // Group Support
 
   const QuizEngineScreen({
     super.key,
@@ -178,18 +106,8 @@ class QuizEngineScreen extends StatefulWidget {
 class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late PageController _pageController;
   int currentQuestionIndex = 0;
-
-  Timer? _masterTimer;
-  Timer? _sectionTimer;
-  Timer? _questionTimer;
-
-  final ValueNotifier<int> _secondsRemainingNotifier = ValueNotifier<int>(3600);
-  int _currentQuestionSeconds = 0;
-  late List<int> questionTimesInSeconds;
-
-  bool _hasSectionalTiming = false;
-  final Map<String, int> _sectionDurationsInSeconds = {};
-  int _currentSectionSecondsRemaining = 0;
+  Timer? _timer;
+  int _secondsRemaining = 3600;
 
   List<Map<String, dynamic>> questions = [];
   bool _isLoadingQuestions = true;
@@ -205,7 +123,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
-    _checkInternetAndFetch();
+    _fetchQuestionsAndSavedState();
 
     UnityAds.load(
       placementId: 'BP_Interstitial_Android',
@@ -215,34 +133,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     );
   }
 
-  Future<void> _checkInternetAndFetch() async {
-    var connectivityResult = await (Connectivity().checkConnectivity());
-    if (connectivityResult.contains(ConnectivityResult.none)) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text('Internet Connection Required'),
-            content: const Text('Is test ko access karne ke liye active internet connection zaroori hai.'),
-            actions: [
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                },
-                child: const Text('OK'),
-              )
-            ],
-          ),
-        );
-      }
-      return;
-    }
-
-    _fetchQuestionsAndSavedState();
-  }
-
   Future<void> _fetchQuestionsAndSavedState() async {
     try {
       final testDoc = await FirebaseFirestore.instance
@@ -250,53 +140,22 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
           .doc(widget.testId)
           .get();
 
-      int initialSeconds = 3600;
       if (testDoc.exists) {
         final testData = testDoc.data();
-        int adminDurationMinutes = (testData?['durationMinutes'] as num?)?.toInt() ?? 60;
-        initialSeconds = adminDurationMinutes * 60;
-
-        _hasSectionalTiming = testData?['hasSectionalTiming'] ?? false;
-        if (_hasSectionalTiming && testData?['sectionTimings'] != null) {
-          Map rawMap = testData!['sectionTimings'];
-          rawMap.forEach((key, val) {
-            int durationMinutes = (val is num) ? val.toInt() : 15;
-            _sectionDurationsInSeconds[key.toString()] = durationMinutes * 60;
-          });
-        }
+        int adminDurationMinutes = testData?['durationMinutes'] ?? 60;
+        _secondsRemaining = adminDurationMinutes * 60;
       }
 
-      QuerySnapshot<Map<String, dynamic>> snapshot;
-      try {
-        snapshot = await FirebaseFirestore.instance
-            .collection('mock_tests')
-            .doc(widget.testId)
-            .collection('questions')
-            .orderBy('questionNo', descending: false)
-            .get(const GetOptions(source: Source.cache));
-
-        if (snapshot.docs.isEmpty) {
-          snapshot = await FirebaseFirestore.instance
-              .collection('mock_tests')
-              .doc(widget.testId)
-              .collection('questions')
-              .orderBy('questionNo', descending: false)
-              .get(const GetOptions(source: Source.server));
-        }
-      } catch (e) {
-        snapshot = await FirebaseFirestore.instance
-            .collection('mock_tests')
-            .doc(widget.testId)
-            .collection('questions')
-            .orderBy('questionNo', descending: false)
-            .get();
-      }
-
-      if (!mounted) return;
+      final snapshot = await FirebaseFirestore.instance
+          .collection('mock_tests')
+          .doc(widget.testId)
+          .collection('questions')
+          .orderBy('questionNo', descending: false)
+          .get();
 
       if (snapshot.docs.isNotEmpty) {
         questions = snapshot.docs.map((doc) => doc.data()).toList();
-
+        
         Set<String> secSet = {};
         for (var q in questions) {
           if (q['section'] != null && q['section'].toString().isNotEmpty) {
@@ -309,7 +168,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
         selectedAnswers = List<int?>.filled(questions.length, null);
         questionStatuses = List<QuestionStatus>.filled(questions.length, QuestionStatus.notVisited);
-        questionTimesInSeconds = List<int>.filled(questions.length, 0);
 
         final user = FirebaseAuth.instance.currentUser;
 
@@ -323,118 +181,40 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
           if (savedDoc.exists) {
             final data = savedDoc.data()!;
-            initialSeconds = (data['remainingSeconds'] as num?)?.toInt() ?? initialSeconds;
-            currentQuestionIndex = (data['currentIndex'] as num?)?.toInt() ?? 0;
+            _secondsRemaining = data['remainingSeconds'] ?? _secondsRemaining;
+            currentQuestionIndex = data['currentIndex'] ?? 0;
             List<dynamic> savedAnswers = data['selectedAnswers'] ?? [];
-            List<dynamic> savedTimes = data['questionTimes'] ?? [];
-
             for (int i = 0; i < savedAnswers.length && i < selectedAnswers.length; i++) {
               if (savedAnswers[i] != null) {
-                selectedAnswers[i] = (savedAnswers[i] as num?)?.toInt();
+                selectedAnswers[i] = savedAnswers[i];
                 questionStatuses[i] = QuestionStatus.answered;
               }
             }
-            for (int i = 0; i < savedTimes.length && i < questionTimesInSeconds.length; i++) {
-              questionTimesInSeconds[i] = (savedTimes[i] as num?)?.toInt() ?? 0;
-            }
           }
         }
-
-        _secondsRemainingNotifier.value = initialSeconds;
 
         if (questionStatuses[currentQuestionIndex] == QuestionStatus.notVisited) {
           questionStatuses[currentQuestionIndex] = QuestionStatus.notAnswered;
         }
 
-        if (_pageController.hasClients) {
-          _pageController.jumpToPage(currentQuestionIndex);
-        } else {
-          _pageController = PageController(initialPage: currentQuestionIndex);
-        }
-
+        _pageController = PageController(initialPage: currentQuestionIndex);
         setState(() => _isLoadingQuestions = false);
-
-        if (_hasSectionalTiming) {
-          _startSectionTimer();
-        } else {
-          _startMasterTimer();
-        }
-        _startQuestionTimer();
+        _startTimer();
       } else {
         setState(() => _isLoadingQuestions = false);
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoadingQuestions = false);
+      setState(() => _isLoadingQuestions = false);
     }
   }
 
-  void _startMasterTimer() {
-    _masterTimer?.cancel();
-    _masterTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsRemainingNotifier.value > 0) {
-        _secondsRemainingNotifier.value--;
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining > 0) {
+        setState(() => _secondsRemaining--);
       } else {
-        _masterTimer?.cancel();
-        _questionTimer?.cancel();
+        _timer?.cancel();
         _submitTestWithAd();
-      }
-    });
-  }
-
-  void _startSectionTimer() {
-    _sectionTimer?.cancel();
-    String currentSec = _sections[_currentSectionIndex];
-    _currentSectionSecondsRemaining = _sectionDurationsInSeconds[currentSec] ?? (15 * 60);
-    _secondsRemainingNotifier.value = _currentSectionSecondsRemaining;
-
-    _sectionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_currentSectionSecondsRemaining > 0) {
-        _currentSectionSecondsRemaining--;
-        _secondsRemainingNotifier.value = _currentSectionSecondsRemaining;
-      } else {
-        timer.cancel();
-        _handleSectionTimeOver();
-      }
-    });
-  }
-
-  void _handleSectionTimeOver() {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Time over for ${_sections[_currentSectionIndex]}! Auto-switching section."),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
-
-    if (_currentSectionIndex < _sections.length - 1) {
-      setState(() {
-        _currentSectionIndex++;
-      });
-
-      String nextSec = _sections[_currentSectionIndex];
-      int nextQIndex = questions.indexWhere((q) => q['section'] == nextSec);
-      if (nextQIndex != -1) {
-        _navigateToQuestion(nextQIndex, force: true);
-      }
-      _startSectionTimer();
-    } else {
-      _submitTestWithAd();
-    }
-  }
-
-  void _startQuestionTimer() {
-    _questionTimer?.cancel();
-    if (questions.isEmpty) return;
-
-    _currentQuestionSeconds = questionTimesInSeconds[currentQuestionIndex];
-
-    _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          _currentQuestionSeconds++;
-          questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
-        });
       }
     });
   }
@@ -463,30 +243,30 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
   }
 
-  void _onQuestionPageChanged(int index) {
-    if (_hasSectionalTiming) {
-      String currentSec = _sections[_currentSectionIndex];
-      String targetSec = questions[index]['section'] ?? currentSec;
+  bool _hasMathFormula(String text) {
+    return text.contains(r'\') ||
+        text.contains(r'$') ||
+        text.contains(r'\frac') ||
+        text.contains(r'\sqrt') ||
+        text.contains(r'\int') ||
+        text.contains(r'\pi') ||
+        text.contains(r'\theta');
+  }
 
-      if (currentSec != targetSec) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_pageController.hasClients) {
-            _pageController.jumpToPage(currentQuestionIndex);
-          }
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Is section ke aage nahi ja sakte! Pehle is section ko submit karein."),
-            backgroundColor: Colors.black87,
-            duration: Duration(seconds: 1),
-          ),
-        );
-        return;
-      }
+  Widget _buildMathOrText(String content, {double fontSize = 14}) {
+    if (content.trim().isEmpty) return const SizedBox();
+
+    if (_hasMathFormula(content)) {
+      return MathJaxView(content: content, fontSize: fontSize);
     }
 
-    questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
+    return Text(
+      content,
+      style: GoogleFonts.poppins(fontSize: fontSize, fontWeight: FontWeight.w600, color: Colors.black87),
+    );
+  }
 
+  void _onQuestionPageChanged(int index) {
     setState(() {
       if (questionStatuses[currentQuestionIndex] == QuestionStatus.notVisited) {
         questionStatuses[currentQuestionIndex] = QuestionStatus.notAnswered;
@@ -495,43 +275,15 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       if (questionStatuses[currentQuestionIndex] == QuestionStatus.notVisited) {
         questionStatuses[currentQuestionIndex] = QuestionStatus.notAnswered;
       }
-
-      if (questions.isNotEmpty && questions[index]['section'] != null) {
-        String sec = questions[index]['section'].toString();
-        int secIdx = _sections.indexOf(sec);
-        if (secIdx != -1) {
-          _currentSectionIndex = secIdx;
-        }
-      }
     });
-
-    _startQuestionTimer();
   }
 
-  void _navigateToQuestion(int index, {bool force = false}) {
-    if (!force && _hasSectionalTiming) {
-      String currentSec = _sections[_currentSectionIndex];
-      String targetSec = questions[index]['section'] ?? currentSec;
-
-      if (currentSec != targetSec) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Sectional lock active! Submit this section first."),
-            backgroundColor: Colors.black87,
-            duration: Duration(seconds: 1),
-          ),
-        );
-        return;
-      }
-    }
-
-    if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-      );
-    }
+  void _navigateToQuestion(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
   }
 
   void _selectOption(int optIndex) {
@@ -569,9 +321,17 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     });
   }
 
-  Future<bool> _showPauseDialog() async {
-    questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
+  void _showSectionToast() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("You can't switch section without submitting current section"),
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.black87,
+      ),
+    );
+  }
 
+  Future<bool> _showPauseDialog() async {
     bool? shouldPause = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -596,14 +356,13 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                     .set({
                   'testId': widget.testId,
                   'testTitle': widget.testTitle,
-                  'remainingSeconds': _secondsRemainingNotifier.value,
+                  'remainingSeconds': _secondsRemaining,
                   'currentIndex': currentQuestionIndex,
                   'selectedAnswers': selectedAnswers,
-                  'questionTimes': questionTimesInSeconds,
                   'updatedAt': FieldValue.serverTimestamp(),
                 });
               }
-              if (context.mounted) Navigator.pop(context, true);
+              if (mounted) Navigator.pop(context, true);
             },
             child: const Text('Yes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
@@ -701,15 +460,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
                         return InkWell(
                           onTap: () {
-                            if (_hasSectionalTiming) {
-                              String qSec = questions[index]['section'] ?? '';
-                              if (qSec != _sections[_currentSectionIndex]) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Section lock active!")),
-                                );
-                                return;
-                              }
-                            }
                             Navigator.pop(context);
                             _navigateToQuestion(index);
                           },
@@ -722,6 +472,24 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Question Paper', style: TextStyle(fontSize: 11)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Instructions', style: TextStyle(fontSize: 11)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -742,7 +510,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                           Navigator.pop(context);
                           _confirmSubmitDialog(isSectionSubmit: false);
                         },
-                        child: const Text('Submit Full Test', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: const Text('Submit Test', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -776,8 +544,10 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A237E)),
             onPressed: () {
               Navigator.pop(context);
-              if (isSectionSubmit && _hasSectionalTiming) {
-                _handleSectionTimeOver();
+              if (isSectionSubmit) {
+                if (_currentSectionIndex < _sections.length - 1) {
+                  setState(() => _currentSectionIndex++);
+                }
               } else {
                 _submitTestWithAd();
               }
@@ -790,8 +560,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   Future<void> _submitTestWithAd() async {
-    questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
-    if (mounted) setState(() => _isSubmitting = true);
+    setState(() => _isSubmitting = true);
 
     UnityAds.showVideoAd(
       placementId: 'BP_Interstitial_Android',
@@ -802,10 +571,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   }
 
   Future<void> _processSubmitAndNavigate() async {
-    _masterTimer?.cancel();
-    _sectionTimer?.cancel();
-    _questionTimer?.cancel();
-
+    _timer?.cancel();
     int correctCount = 0;
     int wrongCount = 0;
     int unattemptedCount = 0;
@@ -825,6 +591,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // Fetch Previous Attempt Count
       final existingDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -834,10 +601,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
       int newAttemptCount = 1;
       if (existingDoc.exists) {
-        int currentAttempts = (existingDoc.data()?['attemptCount'] as num?)?.toInt() ?? 1;
+        int currentAttempts = existingDoc.data()?['attemptCount'] ?? 1;
         newAttemptCount = currentAttempts + 1;
       }
 
+      // Save Latest Attempt
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -850,27 +618,22 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         'correctCount': correctCount,
         'wrongCount': wrongCount,
         'selectedAnswers': selectedAnswers,
-        'questionTimes': questionTimesInSeconds,
         'attemptCount': newAttemptCount,
         'status': 'Completed',
         'attemptedAt': FieldValue.serverTimestamp(),
       });
 
-      if (!widget.isReattempt) {
-        String? activeGroup = widget.groupCode ?? GroupStudyScreen.activeGroupCode;
-        if (activeGroup != null && activeGroup.isNotEmpty) {
-          try {
-            await GroupService().updateGroupScore(
-              activeGroup,
-              totalScore,
-              isReattempt: widget.isReattempt,
-            );
-          } catch (e) {
-            debugPrint('Error updating group score: $e');
-          }
+      // SYNC SCORE TO STUDY GROUP LEADERBOARD
+      String? activeGroup = widget.groupCode ?? GroupStudyScreen.activeGroupCode;
+      if (activeGroup != null && activeGroup.isNotEmpty) {
+        try {
+          await GroupService().updateGroupScore(activeGroup, totalScore);
+        } catch (e) {
+          debugPrint('Error updating group score: $e');
         }
       }
 
+      // Clear Paused Entry
       try {
         await FirebaseFirestore.instance
             .collection('users')
@@ -897,7 +660,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             correctCount: correctCount,
             wrongCount: wrongCount,
             unattemptedCount: unattemptedCount,
-            questionTimes: questionTimesInSeconds,
             groupCode: widget.groupCode ?? GroupStudyScreen.activeGroupCode,
           ),
         ),
@@ -907,10 +669,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   @override
   void dispose() {
-    _masterTimer?.cancel();
-    _sectionTimer?.cancel();
-    _questionTimer?.cancel();
-    _secondsRemainingNotifier.dispose();
+    _timer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -955,22 +714,14 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
               decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(6)),
-              child: ValueListenableBuilder<int>(
-                valueListenable: _secondsRemainingNotifier,
-                builder: (context, seconds, child) {
-                  return Text(
-                    _formatTime(seconds),
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 10),
-                  );
-                },
-              ),
+              child: Text(_formatTime(_secondsRemaining), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 10)),
             ),
             IconButton(icon: const Icon(Icons.info_outline, color: Colors.white), onPressed: () {}),
           ],
         ),
         backgroundColor: const Color(0xFFF4F6FA),
         floatingActionButton: Padding(
-          padding: const EdgeInsets.only(bottom: 50.0),
+          padding: const EdgeInsets.only(bottom: 45.0),
           child: FloatingActionButton(
             mini: true,
             backgroundColor: Colors.green.shade700,
@@ -992,17 +743,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       final isSel = _currentSectionIndex == index;
                       return GestureDetector(
                         onTap: () {
-                          if (_hasSectionalTiming && index != _currentSectionIndex) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Sectional lock active! Wait for timer or submit current section."),
-                                backgroundColor: Colors.black87,
-                              ),
-                            );
-                          } else if (!_hasSectionalTiming) {
-                            String targetSec = _sections[index];
-                            int qIdx = questions.indexWhere((q) => q['section'] == targetSec);
-                            if (qIdx != -1) _navigateToQuestion(qIdx);
+                          if (index != _currentSectionIndex) {
+                            _showSectionToast();
                           }
                         },
                         child: Container(
@@ -1012,22 +754,13 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                             border: Border(bottom: BorderSide(color: isSel ? Colors.amber : Colors.transparent, width: 3)),
                           ),
                           alignment: Alignment.center,
-                          child: Row(
-                            children: [
-                              Text(
-                                _sections[index],
-                                style: TextStyle(
-                                  color: isSel ? Colors.amber : Colors.white70,
-                                  fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              if (_hasSectionalTiming && !isSel)
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 4.0),
-                                  child: Icon(Icons.lock, size: 12, color: Colors.amber),
-                                ),
-                            ],
+                          child: Text(
+                            _sections[index],
+                            style: TextStyle(
+                              color: isSel ? Colors.amber : Colors.white70,
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       );
@@ -1037,28 +770,19 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
-                    physics: const AlwaysScrollableScrollPhysics(),
                     onPageChanged: _onQuestionPageChanged,
                     itemCount: questions.length,
                     itemBuilder: (context, index) {
                       final qData = questions[index];
                       final String displayQText = _getParsedText(qData['questionText'] ?? '');
                       final List<String> displayOptions = _extractOptions(qData['options']);
-                      
-                      String? qImageUrl;
-                      if (qData['imageUrl'] != null && qData['imageUrl'].toString().trim().isNotEmpty) {
-                        qImageUrl = qData['imageUrl'].toString().trim();
-                      } else if (qData['image'] != null && qData['image'].toString().trim().isNotEmpty) {
-                        qImageUrl = qData['image'].toString().trim();
-                      }
-                      
+                      final String? qImageUrl = qData['imageUrl'] ?? qData['image'];
                       final List<dynamic>? optImages = qData['optionImages'];
 
                       return SingleChildScrollView(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1066,57 +790,29 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 Text('No. ${index + 1}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
                                 Row(
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: Colors.indigo.shade50,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: const Color(0xFF1A237E), width: 1),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF1A237E)),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            _formatTime(_currentQuestionSeconds),
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: const Color(0xFF1A237E),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
                                     IconButton(icon: const Icon(Icons.bookmark_border, size: 20), onPressed: () {}),
                                     const Icon(Icons.error_outline, color: Colors.red, size: 20),
                                   ],
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
                             Card(
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               child: Padding(
                                 padding: const EdgeInsets.all(14.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    KaTeXMathView(
-                                      content: displayQText,
-                                      fontSize: 14,
-                                    ),
-                                    if (qImageUrl != null) ...[
+                                    _buildMathOrText(displayQText, fontSize: 14),
+                                    if (qImageUrl != null && qImageUrl.toString().trim().isNotEmpty) ...[
                                       const SizedBox(height: 12),
                                       Container(
-                                        constraints: const BoxConstraints(maxHeight: 220),
+                                        constraints: const BoxConstraints(maxHeight: 250),
                                         width: double.infinity,
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(8),
                                           child: Image.network(
-                                            qImageUrl,
+                                            qImageUrl.toString().trim(),
                                             fit: BoxFit.contain,
                                             errorBuilder: (context, error, stackTrace) => const SizedBox(),
                                           ),
@@ -1128,9 +824,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            
                             Column(
-                              mainAxisSize: MainAxisSize.min,
                               children: List.generate(displayOptions.length, (optIdx) {
                                 final isSelected = selectedAnswers[index] == optIdx;
                                 String? optImg;
@@ -1143,47 +837,29 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   color: isSelected ? Colors.indigo.shade50 : Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(
-                                      color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, 
-                                      width: isSelected ? 2 : 1
-                                    ),
+                                    side: BorderSide(color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, width: isSelected ? 2 : 1),
                                   ),
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
                                     dense: true,
-                                    title: Row(
+                                    title: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          '(${String.fromCharCode(65 + optIdx)}) ',
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.bold,
-                                            color: isSelected ? const Color(0xFF1A237E) : Colors.black87,
-                                            fontSize: 13,
+                                        _buildMathOrText(displayOptions[optIdx], fontSize: 13),
+                                        if (optImg != null && optImg.trim().isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Image.network(
+                                              optImg.trim(),
+                                              height: 90,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (_, __, ___) => const SizedBox(),
+                                            ),
                                           ),
-                                        ),
-                                        Expanded(
-                                          child: KaTeXMathView(
-                                            content: displayOptions[optIdx],
-                                            fontSize: 13,
-                                          ),
-                                        ),
+                                        ]
                                       ],
                                     ),
-                                    subtitle: (optImg != null && optImg.trim().isNotEmpty)
-                                        ? Padding(
-                                            padding: const EdgeInsets.only(top: 6.0),
-                                            child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(6),
-                                              child: Image.network(
-                                                optImg.trim(),
-                                                height: 90,
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (_, __, ___) => const SizedBox(),
-                                              ),
-                                            ),
-                                          )
-                                        : null,
                                     leading: Radio<int>(
                                       value: optIdx,
                                       groupValue: selectedAnswers[index],
@@ -1195,7 +871,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 );
                               }),
                             ),
-                            const SizedBox(height: 80),
                           ],
                         ),
                       );
