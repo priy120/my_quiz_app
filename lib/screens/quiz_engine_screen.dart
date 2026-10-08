@@ -12,20 +12,26 @@ import '../services/group_service.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
-class MathJaxView extends StatefulWidget {
-  final String content;
+/// Solution 2: Single-WebView Component for Rendering MathJax/LaTeX
+class SingleMathJaxView extends StatefulWidget {
+  final String questionContent;
+  final List<String> options;
   final double fontSize;
 
-  const MathJaxView({super.key, required this.content, this.fontSize = 14});
+  const SingleMathJaxView({
+    super.key,
+    required this.questionContent,
+    required this.options,
+    this.fontSize = 14,
+  });
 
   @override
-  State<MathJaxView> createState() => _MathJaxViewState();
+  State<SingleMathJaxView> createState() => _SingleMathJaxViewState();
 }
 
-class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
+class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
-  double _contentHeight = 60.0;
-  bool _isReady = false;
+  double _contentHeight = 120.0;
 
   @override
   bool get wantKeepAlive => true;
@@ -43,29 +49,34 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
           if (parsedHeight != null && parsedHeight > 0) {
             if (mounted) {
               setState(() {
-                _contentHeight = parsedHeight + 12; // Extra buffer to avoid cutoff
-                _isReady = true;
+                _contentHeight = parsedHeight + 16; // Extra buffer to prevent scrollbars
               });
             }
           }
         },
       )
-      ..loadHtmlString(_buildHtml(widget.content, widget.fontSize));
+      ..loadHtmlString(_buildHtml());
   }
 
   @override
-  void didUpdateWidget(covariant MathJaxView oldWidget) {
+  void didUpdateWidget(covariant SingleMathJaxView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.content != widget.content) {
-      setState(() {
-        _isReady = false;
-        _contentHeight = 60.0;
-      });
-      _controller.loadHtmlString(_buildHtml(widget.content, widget.fontSize));
+    if (oldWidget.questionContent != widget.questionContent || oldWidget.options != widget.options) {
+      _controller.loadHtmlString(_buildHtml());
     }
   }
 
-  String _buildHtml(String content, double size) {
+  String _buildHtml() {
+    StringBuffer optionsHtml = StringBuffer();
+    for (int i = 0; i < widget.options.length; i++) {
+      optionsHtml.write('''
+        <div class="option-box">
+          <span class="option-label">(${String.fromCharCode(65 + i)})</span>
+          <div class="option-text">${widget.options[i]}</div>
+        </div>
+      ''');
+    }
+
     return '''
     <!DOCTYPE html>
     <html>
@@ -109,13 +120,31 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
         }
         body {
           font-family: 'Poppins', sans-serif !important;
-          font-size: ${size}px !important;
+          font-size: ${widget.fontSize}px !important;
           font-weight: 600 !important;
           color: #000000 !important;
           user-select: none;
           word-wrap: break-word;
           overflow-wrap: break-word;
           -webkit-font-smoothing: antialiased;
+        }
+        .question-container {
+          padding: 8px 0;
+          line-height: 1.5;
+        }
+        .option-box {
+          display: flex;
+          align-items: flex-start;
+          margin-top: 8px;
+          padding: 6px 0;
+        }
+        .option-label {
+          font-weight: 700;
+          margin-right: 8px;
+          color: #1A237E;
+        }
+        .option-text {
+          flex: 1;
         }
         img { max-width: 100%; height: auto; }
         .mjx-chtml, .MathJax, mtd, mtr, span {
@@ -124,7 +153,12 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
         }
       </style>
     </head>
-    <body>$content</body>
+    <body>
+      <div class="question-container">
+        ${widget.questionContent}
+      </div>
+      ${optionsHtml.toString()}
+    </body>
     </html>
     ''';
   }
@@ -160,7 +194,7 @@ class QuizEngineScreen extends StatefulWidget {
 class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late PageController _pageController;
   int currentQuestionIndex = 0;
-  
+
   Timer? _masterTimer;
   Timer? _sectionTimer;
   Timer? _questionTimer;
@@ -170,7 +204,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
   late List<int> questionTimesInSeconds;
 
   bool _hasSectionalTiming = false;
-  Map<String, int> _sectionDurationsInSeconds = {};
+  final Map<String, int> _sectionDurationsInSeconds = {};
   int _currentSectionSecondsRemaining = 0;
 
   List<Map<String, dynamic>> questions = [];
@@ -221,7 +255,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       }
       return;
     }
-    
+
     _fetchQuestionsAndSavedState();
   }
 
@@ -235,14 +269,15 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       int initialSeconds = 3600;
       if (testDoc.exists) {
         final testData = testDoc.data();
-        int adminDurationMinutes = testData?['durationMinutes'] ?? 60;
+        int adminDurationMinutes = (testData?['durationMinutes'] as num?)?.toInt() ?? 60;
         initialSeconds = adminDurationMinutes * 60;
 
         _hasSectionalTiming = testData?['hasSectionalTiming'] ?? false;
         if (_hasSectionalTiming && testData?['sectionTimings'] != null) {
           Map rawMap = testData!['sectionTimings'];
           rawMap.forEach((key, val) {
-            _sectionDurationsInSeconds[key.toString()] = ((val as int?) ?? 15) * 60;
+            int durationMinutes = (val is num) ? val.toInt() : 15;
+            _sectionDurationsInSeconds[key.toString()] = durationMinutes * 60;
           });
         }
       }
@@ -273,9 +308,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
             .get();
       }
 
+      if (!mounted) return;
+
       if (snapshot.docs.isNotEmpty) {
         questions = snapshot.docs.map((doc) => doc.data()).toList();
-        
+
         Set<String> secSet = {};
         for (var q in questions) {
           if (q['section'] != null && q['section'].toString().isNotEmpty) {
@@ -302,19 +339,19 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
           if (savedDoc.exists) {
             final data = savedDoc.data()!;
-            initialSeconds = data['remainingSeconds'] ?? initialSeconds;
-            currentQuestionIndex = data['currentIndex'] ?? 0;
+            initialSeconds = (data['remainingSeconds'] as num?)?.toInt() ?? initialSeconds;
+            currentQuestionIndex = (data['currentIndex'] as num?)?.toInt() ?? 0;
             List<dynamic> savedAnswers = data['selectedAnswers'] ?? [];
             List<dynamic> savedTimes = data['questionTimes'] ?? [];
 
             for (int i = 0; i < savedAnswers.length && i < selectedAnswers.length; i++) {
               if (savedAnswers[i] != null) {
-                selectedAnswers[i] = savedAnswers[i];
+                selectedAnswers[i] = (savedAnswers[i] as num?)?.toInt();
                 questionStatuses[i] = QuestionStatus.answered;
               }
             }
             for (int i = 0; i < savedTimes.length && i < questionTimesInSeconds.length; i++) {
-              questionTimesInSeconds[i] = savedTimes[i] ?? 0;
+              questionTimesInSeconds[i] = (savedTimes[i] as num?)?.toInt() ?? 0;
             }
           }
         }
@@ -343,7 +380,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         setState(() => _isLoadingQuestions = false);
       }
     } catch (e) {
-      setState(() => _isLoadingQuestions = false);
+      if (mounted) setState(() => _isLoadingQuestions = false);
     }
   }
 
@@ -368,12 +405,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     _sectionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_currentSectionSecondsRemaining > 0) {
-        if (mounted) {
-          setState(() {
-            _currentSectionSecondsRemaining--;
-            _secondsRemainingNotifier.value = _currentSectionSecondsRemaining;
-          });
-        }
+        _currentSectionSecondsRemaining--;
+        _secondsRemainingNotifier.value = _currentSectionSecondsRemaining;
       } else {
         timer.cancel();
         _handleSectionTimeOver();
@@ -412,12 +445,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     _currentQuestionSeconds = questionTimesInSeconds[currentQuestionIndex];
 
     _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          _currentQuestionSeconds++;
-          questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
-        });
-      }
+      _currentQuestionSeconds++;
+      questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
     });
   }
 
@@ -445,18 +474,17 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
   }
 
-  Widget _buildMathOrText(String content, {double fontSize = 14}) {
-    if (content.trim().isEmpty) return const SizedBox();
-    return MathJaxView(content: content, fontSize: fontSize);
-  }
-
   void _onQuestionPageChanged(int index) {
     if (_hasSectionalTiming) {
       String currentSec = _sections[_currentSectionIndex];
       String targetSec = questions[index]['section'] ?? currentSec;
 
       if (currentSec != targetSec) {
-        _pageController.jumpToPage(currentQuestionIndex);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_pageController.hasClients) {
+            _pageController.jumpToPage(currentQuestionIndex);
+          }
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("Is section ke aage nahi ja sakte! Pehle is section ko submit karein."),
@@ -586,7 +614,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                   'updatedAt': FieldValue.serverTimestamp(),
                 });
               }
-              if (mounted) Navigator.pop(context, true);
+              if (context.mounted) Navigator.pop(context, true);
             },
             child: const Text('Yes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
@@ -774,7 +802,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
   Future<void> _submitTestWithAd() async {
     questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
-    setState(() => _isSubmitting = true);
+    if (mounted) setState(() => _isSubmitting = true);
 
     UnityAds.showVideoAd(
       placementId: 'BP_Interstitial_Android',
@@ -817,7 +845,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
       int newAttemptCount = 1;
       if (existingDoc.exists) {
-        int currentAttempts = existingDoc.data()?['attemptCount'] ?? 1;
+        int currentAttempts = (existingDoc.data()?['attemptCount'] as num?)?.toInt() ?? 1;
         newAttemptCount = currentAttempts + 1;
       }
 
@@ -844,8 +872,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
         if (activeGroup != null && activeGroup.isNotEmpty) {
           try {
             await GroupService().updateGroupScore(
-              activeGroup, 
-              totalScore, 
+              activeGroup,
+              totalScore,
               isReattempt: widget.isReattempt,
             );
           } catch (e) {
@@ -913,7 +941,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (bool didPop) async {
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
         final shouldExit = await _showPauseDialog();
         if (shouldExit && context.mounted) {
@@ -1034,7 +1062,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min, // 👈 Height auto-adjust karega
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1078,9 +1106,14 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 padding: const EdgeInsets.all(14.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min, // 👈 Extra space hatane ke liye
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    _buildMathOrText(displayQText, fontSize: 14),
+                                    // Single WebView for both Question and Options Text
+                                    SingleMathJaxView(
+                                      questionContent: displayQText,
+                                      options: displayOptions,
+                                      fontSize: 14,
+                                    ),
                                     if (qImageUrl != null && qImageUrl.toString().trim().isNotEmpty) ...[
                                       const SizedBox(height: 12),
                                       Container(
@@ -1101,6 +1134,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
+                            
+                            // Native Choice Selectors (Radios)
                             Column(
                               mainAxisSize: MainAxisSize.min,
                               children: List.generate(displayOptions.length, (optIdx) {
@@ -1115,29 +1150,35 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   color: isSelected ? Colors.indigo.shade50 : Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                                    side: BorderSide(
+                                      color: isSelected ? const Color(0xFF1A237E) : Colors.grey.shade300, 
+                                      width: isSelected ? 2 : 1
+                                    ),
                                   ),
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
                                     dense: true,
-                                    title: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        _buildMathOrText(displayOptions[optIdx], fontSize: 13),
-                                        if (optImg != null && optImg.trim().isNotEmpty) ...[
-                                          const SizedBox(height: 6),
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(6),
-                                            child: Image.network(
-                                              optImg.trim(),
-                                              height: 90,
-                                              fit: BoxFit.contain,
-                                              errorBuilder: (_, __, ___) => const SizedBox(),
-                                            ),
-                                          ),
-                                        ]
-                                      ],
+                                    title: Text(
+                                      'Select Option (${String.fromCharCode(65 + optIdx)})',
+                                      style: TextStyle(
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                        color: isSelected ? const Color(0xFF1A237E) : Colors.black87,
+                                      ),
                                     ),
+                                    subtitle: (optImg != null && optImg.trim().isNotEmpty)
+                                        ? Padding(
+                                            padding: const EdgeInsets.only(top: 6.0),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(6),
+                                              child: Image.network(
+                                                optImg.trim(),
+                                                height: 90,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (_, __, ___) => const SizedBox(),
+                                              ),
+                                            ),
+                                          )
+                                        : null,
                                     leading: Radio<int>(
                                       value: optIdx,
                                       groupValue: selectedAnswers[index],
@@ -1149,7 +1190,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                 );
                               }),
                             ),
-                            const SizedBox(height: 80), // 👈 Bottom buttons overlay fix
+                            const SizedBox(height: 80),
                           ],
                         ),
                       );
