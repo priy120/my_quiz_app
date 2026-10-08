@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package0cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -49,7 +49,7 @@ class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKee
           if (parsedHeight != null && parsedHeight > 0) {
             if (mounted) {
               setState(() {
-                _contentHeight = parsedHeight + 16; // Extra buffer to prevent scrollbars
+                _contentHeight = parsedHeight + 16;
               });
             }
           }
@@ -939,9 +939,10 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       );
     }
 
+    // Fixed for Flutter 3.19.6 Compatibility (onPopInvoked)
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+      onPopInvoked: (bool didPop) async {
         if (didPop) return;
         final shouldExit = await _showPauseDialog();
         if (shouldExit && context.mounted) {
@@ -1108,7 +1109,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // Single WebView for both Question and Options Text
                                     SingleMathJaxView(
                                       questionContent: displayQText,
                                       options: displayOptions,
@@ -1134,8 +1134,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            
-                            // Native Choice Selectors (Radios)
                             Column(
                               mainAxisSize: MainAxisSize.min,
                               children: List.generate(displayOptions.length, (optIdx) {
