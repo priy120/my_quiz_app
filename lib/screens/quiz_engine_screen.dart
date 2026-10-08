@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package0cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -939,7 +939,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       );
     }
 
-    // Fixed for Flutter 3.19.6 Compatibility (onPopInvoked)
+    // Flutter 3.19.6 compatible PopScope
     return PopScope(
       canPop: false,
       onPopInvoked: (bool didPop) async {
