@@ -12,7 +12,7 @@ import '../services/group_service.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
-/// Instant & Jump-Free Math Renderer using KaTeX Engine
+/// Instant & Jump-Free Math Renderer using KaTeX Engine (Auto-wraps \sqrt, \frac etc.)
 class KaTeXMathView extends StatefulWidget {
   final String content;
   final double fontSize;
@@ -68,7 +68,24 @@ class _KaTeXMathViewState extends State<KaTeXMathView> with AutomaticKeepAliveCl
     }
   }
 
-  String _buildKaTeXHtml(String content, double size) {
+  /// Ensures un-escaped LaTeX formulas (\sqrt, \frac, etc.) get converted to math
+  String _prepareMathContent(String raw) {
+    String text = raw;
+
+    // Fast check: Agar raw text me \sqrt, \frac, \times etc. hain par $ $ se wrap nahi hain
+    if (text.contains(RegExp(r'\\[a-zA-Z]+')) && !text.contains('\$')) {
+      text = text.replaceAllMapped(
+        RegExp(r'(\d*\s*\\[a-zA-Z]+\{[^}]+\}(\{[^}]+\})*)'), 
+        (match) => '\$${match.group(1)}\$'
+      );
+    }
+
+    return text;
+  }
+
+  String _buildKaTeXHtml(String rawContent, double size) {
+    final formattedContent = _prepareMathContent(rawContent);
+
     return '''
     <!DOCTYPE html>
     <html>
@@ -97,11 +114,14 @@ class _KaTeXMathViewState extends State<KaTeXMathView> with AutomaticKeepAliveCl
         .container {
           padding: 2px 0;
         }
+        .katex {
+          font-size: 1.1em !important;
+        }
         img { max-width: 100%; height: auto; border-radius: 6px; margin-top: 8px; }
       </style>
     </head>
     <body>
-      <div class="container" id="content">$content</div>
+      <div class="container" id="content">$formattedContent</div>
       <script>
         document.addEventListener("DOMContentLoaded", function() {
           renderMathInElement(document.getElementById("content"), {
@@ -119,7 +139,7 @@ class _KaTeXMathViewState extends State<KaTeXMathView> with AutomaticKeepAliveCl
             if (window.HeightChannel) {
               window.HeightChannel.postMessage(height.toString());
             }
-          }, 50);
+          }, 40);
         });
       </script>
     </body>
