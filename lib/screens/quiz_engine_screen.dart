@@ -4,8 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
-import 'package:fwfh_math/fwfh_math.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'analysis_screen.dart';
 import 'group_study_screen.dart';
@@ -13,36 +12,127 @@ import '../services/group_service.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
-/// Fast HTML + MathJax + Image Renderer
-class FastMathHtmlRender extends StatelessWidget {
+/// Instant & Jump-Free Math Renderer using KaTeX Engine
+class KaTeXMathView extends StatefulWidget {
   final String content;
   final double fontSize;
 
-  const FastMathHtmlRender({
+  const KaTeXMathView({
     super.key,
     required this.content,
     this.fontSize = 14,
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (content.trim().isEmpty) return const SizedBox();
+  State<KaTeXMathView> createState() => _KaTeXMathViewState();
+}
 
-    return HtmlWidget(
-      content,
-      factoryBuilder: () => MathFactory(),
-      textStyle: GoogleFonts.poppins(
-        fontSize: fontSize,
-        fontWeight: FontWeight.w600,
-        color: Colors.black87,
-        height: 1.4,
-      ),
-      customStylesBuilder: (element) {
-        if (element.localName == 'p') {
-          return {'margin': '0', 'padding': '0'};
+class _KaTeXMathViewState extends State<KaTeXMathView> with AutomaticKeepAliveClientMixin {
+  late WebViewController _controller;
+  double _contentHeight = 45.0;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initController();
+  }
+
+  void _initController() {
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.transparent)
+      ..addJavaScriptChannel(
+        'HeightChannel',
+        onMessageReceived: (JavaScriptMessage message) {
+          double? parsedHeight = double.tryParse(message.message);
+          if (parsedHeight != null && parsedHeight > 0) {
+            if (mounted && (_contentHeight - (parsedHeight + 8)).abs() > 2) {
+              setState(() {
+                _contentHeight = parsedHeight + 8;
+              });
+            }
+          }
+        },
+      )
+      ..loadHtmlString(_buildKaTeXHtml(widget.content, widget.fontSize));
+  }
+
+  @override
+  void didUpdateWidget(covariant KaTeXMathView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.content != widget.content) {
+      _controller.loadHtmlString(_buildKaTeXHtml(widget.content, widget.fontSize));
+    }
+  }
+
+  String _buildKaTeXHtml(String content, double size) {
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+      <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+      <style>
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background-color: transparent !important;
+          overflow: hidden;
         }
-        return null;
-      },
+        body {
+          font-family: 'Poppins', sans-serif !important;
+          font-size: ${size}px !important;
+          font-weight: 600 !important;
+          color: #1A1A1A !important;
+          user-select: none;
+          word-wrap: break-word;
+          line-height: 1.5;
+        }
+        .container {
+          padding: 2px 0;
+        }
+        img { max-width: 100%; height: auto; border-radius: 6px; margin-top: 8px; }
+      </style>
+    </head>
+    <body>
+      <div class="container" id="content">$content</div>
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          renderMathInElement(document.getElementById("content"), {
+            delimiters: [
+              {left: "\$\$", right: "\$\$", display: true},
+              {left: "\$", right: "\$", display: false},
+              {left: "\\\\(", right: "\\\\)", display: false},
+              {left: "\\\\[", right: "\\\\]", display: true}
+            ],
+            throwOnError: false
+          });
+          
+          setTimeout(function() {
+            var height = document.getElementById("content").offsetHeight;
+            if (window.HeightChannel) {
+              window.HeightChannel.postMessage(height.toString());
+            }
+          }, 50);
+        });
+      </script>
+    </body>
+    </html>
+    ''';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return SizedBox(
+      height: _contentHeight,
+      child: WebViewWidget(controller: _controller),
     );
   }
 }
@@ -994,7 +1084,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    FastMathHtmlRender(
+                                    KaTeXMathView(
                                       content: displayQText,
                                       fontSize: 14,
                                     ),
@@ -1053,7 +1143,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                           ),
                                         ),
                                         Expanded(
-                                          child: FastMathHtmlRender(
+                                          child: KaTeXMathView(
                                             content: displayOptions[optIdx],
                                             fontSize: 13,
                                           ),
