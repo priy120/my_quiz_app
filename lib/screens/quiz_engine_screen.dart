@@ -5,23 +5,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:unity_ads_plugin/unity_ads_plugin.dart';
+import 'package0unity_ads_plugin/unity_ads_plugin.dart'; // Ensure correct imports
 import 'analysis_screen.dart';
 import 'group_study_screen.dart';
 import '../services/group_service.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
-/// Solution 2: Single-WebView Component for Rendering MathJax/LaTeX
+/// Smooth & Flicker-Free MathJax Viewer (Only renders Question Content)
 class SingleMathJaxView extends StatefulWidget {
   final String questionContent;
-  final List<String> options;
   final double fontSize;
 
   const SingleMathJaxView({
     super.key,
     required this.questionContent,
-    required this.options,
     this.fontSize = 14,
   });
 
@@ -31,7 +29,8 @@ class SingleMathJaxView extends StatefulWidget {
 
 class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
-  double _contentHeight = 120.0;
+  double _contentHeight = 40.0;
+  bool _isReady = false; // Smooth fade-in to avoid layout jump
 
   @override
   bool get wantKeepAlive => true;
@@ -39,6 +38,10 @@ class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKee
   @override
   void initState() {
     super.initState();
+    _initController();
+  }
+
+  void _initController() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
@@ -49,7 +52,8 @@ class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKee
           if (parsedHeight != null && parsedHeight > 0) {
             if (mounted) {
               setState(() {
-                _contentHeight = parsedHeight + 16;
+                _contentHeight = parsedHeight + 8;
+                _isReady = true; // Show view only AFTER height calculation
               });
             }
           }
@@ -61,22 +65,15 @@ class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKee
   @override
   void didUpdateWidget(covariant SingleMathJaxView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.questionContent != widget.questionContent || oldWidget.options != widget.options) {
+    if (oldWidget.questionContent != widget.questionContent) {
+      setState(() {
+        _isReady = false; // Hide until new question height is ready
+      });
       _controller.loadHtmlString(_buildHtml());
     }
   }
 
   String _buildHtml() {
-    StringBuffer optionsHtml = StringBuffer();
-    for (int i = 0; i < widget.options.length; i++) {
-      optionsHtml.write('''
-        <div class="option-box">
-          <span class="option-label">(${String.fromCharCode(65 + i)})</span>
-          <div class="option-text">${widget.options[i]}</div>
-        </div>
-      ''');
-    }
-
     return '''
     <!DOCTYPE html>
     <html>
@@ -129,22 +126,8 @@ class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKee
           -webkit-font-smoothing: antialiased;
         }
         .question-container {
-          padding: 8px 0;
+          padding: 2px 0;
           line-height: 1.5;
-        }
-        .option-box {
-          display: flex;
-          align-items: flex-start;
-          margin-top: 8px;
-          padding: 6px 0;
-        }
-        .option-label {
-          font-weight: 700;
-          margin-right: 8px;
-          color: #1A237E;
-        }
-        .option-text {
-          flex: 1;
         }
         img { max-width: 100%; height: auto; }
         .mjx-chtml, .MathJax, mtd, mtr, span {
@@ -157,7 +140,6 @@ class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKee
       <div class="question-container">
         ${widget.questionContent}
       </div>
-      ${optionsHtml.toString()}
     </body>
     </html>
     ''';
@@ -168,7 +150,11 @@ class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKee
     super.build(context);
     return SizedBox(
       height: _contentHeight,
-      child: WebViewWidget(controller: _controller),
+      child: AnimatedOpacity(
+        opacity: _isReady ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 150),
+        child: WebViewWidget(controller: _controller),
+      ),
     );
   }
 }
@@ -1109,9 +1095,9 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    // SIRF Question Text render hoga WebView me
                                     SingleMathJaxView(
                                       questionContent: displayQText,
-                                      options: displayOptions,
                                       fontSize: 14,
                                     ),
                                     if (qImageUrl != null && qImageUrl.toString().trim().isNotEmpty) ...[
@@ -1134,6 +1120,8 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
+                            
+                            // Native Options with full Text (A, B, C, D...)
                             Column(
                               mainAxisSize: MainAxisSize.min,
                               children: List.generate(displayOptions.length, (optIdx) {
@@ -1157,10 +1145,11 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   child: ListTile(
                                     dense: true,
                                     title: Text(
-                                      'Select Option (${String.fromCharCode(65 + optIdx)})',
+                                      '(${String.fromCharCode(65 + optIdx)}) ${displayOptions[optIdx]}',
                                       style: TextStyle(
                                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                         color: isSelected ? const Color(0xFF1A237E) : Colors.black87,
+                                        fontSize: 13,
                                       ),
                                     ),
                                     subtitle: (optImg != null && optImg.trim().isNotEmpty)
