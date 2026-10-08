@@ -23,6 +23,7 @@ class MathJaxView extends StatefulWidget {
 
 class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
+  double _webViewHeight = 50.0;
 
   @override
   bool get wantKeepAlive => true;
@@ -33,6 +34,19 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
+      ..addJavaScriptChannel(
+        'HeightChannel',
+        onMessageReceived: (JavaScriptMessage message) {
+          double? height = double.tryParse(message.message);
+          if (height != null && height > 0) {
+            if (mounted && (_webViewHeight - height).abs() > 3) {
+              setState(() {
+                _webViewHeight = height + 10;
+              });
+            }
+          }
+        },
+      )
       ..loadHtmlString(_buildHtml(widget.content, widget.fontSize));
   }
 
@@ -56,24 +70,42 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
             inlineMath: [['\$', '\$'], ['\\\\(', '\\\\)']],
             displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
           },
-          svg: { fontCache: 'global' }
+          svg: { fontCache: 'global' },
+          startup: {
+            pageReady: () => {
+              return MathJax.startup.defaultPageReady().then(() => {
+                setTimeout(sendHeight, 100);
+              });
+            }
+          }
         };
+        function sendHeight() {
+          var height = document.body.scrollHeight || document.documentElement.scrollHeight;
+          if (window.HeightChannel) {
+            window.HeightChannel.postMessage(height.toString());
+          }
+        }
       </script>
       <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       <style>
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background-color: transparent !important;
+          overflow: hidden;
+        }
         body {
           font-family: 'Poppins', sans-serif;
           font-size: ${size}px;
           color: #212121;
-          margin: 0;
-          padding: 0;
-          background-color: transparent;
           user-select: none;
+          word-wrap: break-word;
+          line-height: 1.4;
         }
       </style>
     </head>
-    <body>
-      $content
+    <body onload="sendHeight()">
+      <div id="math-content">$content</div>
     </body>
     </html>
     ''';
@@ -82,12 +114,8 @@ class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClient
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    // Dynamic Height Constraints to Prevent Image & MathJax Text Cutting
-    return Container(
-      constraints: BoxConstraints(
-        minHeight: widget.fontSize * 2.5,
-        maxHeight: 400, // Room for graphs, formulas & large texts
-      ),
+    return SizedBox(
+      height: _webViewHeight,
       child: WebViewWidget(controller: _controller),
     );
   }
@@ -308,7 +336,12 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
 
     return Text(
       content,
-      style: GoogleFonts.poppins(fontSize: fontSize, fontWeight: FontWeight.w600, color: Colors.black87),
+      style: GoogleFonts.poppins(
+        fontSize: fontSize, 
+        fontWeight: FontWeight.w600, 
+        color: Colors.black87,
+        height: 1.4,
+      ),
     );
   }
 
@@ -869,7 +902,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       final List<dynamic>? optImages = qData['optionImages'];
 
                       return SingleChildScrollView(
-                        padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 120.0), // Padding ensures bottom options never cut
+                        padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 100.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
