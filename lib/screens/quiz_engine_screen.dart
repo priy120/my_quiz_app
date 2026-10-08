@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:fwfh_math/fwfh_math.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'analysis_screen.dart';
 import 'group_study_screen.dart';
@@ -12,12 +13,12 @@ import '../services/group_service.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
-/// Fast & Light-weight HTML/Text Renderer (No Webview, No Jump, No Lag)
-class FastHtmlTextRender extends StatelessWidget {
+/// Fast HTML + MathJax + Image Renderer
+class FastMathHtmlRender extends StatelessWidget {
   final String content;
   final double fontSize;
 
-  const FastHtmlTextRender({
+  const FastMathHtmlRender({
     super.key,
     required this.content,
     this.fontSize = 14,
@@ -29,6 +30,7 @@ class FastHtmlTextRender extends StatelessWidget {
 
     return HtmlWidget(
       content,
+      factoryBuilder: () => MathFactory(),
       textStyle: GoogleFonts.poppins(
         fontSize: fontSize,
         fontWeight: FontWeight.w600,
@@ -992,7 +994,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    FastHtmlTextRender(
+                                    FastMathHtmlRender(
                                       content: displayQText,
                                       fontSize: 14,
                                     ),
@@ -1051,7 +1053,7 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                           ),
                                         ),
                                         Expanded(
-                                          child: FastHtmlTextRender(
+                                          child: FastMathHtmlRender(
                                             content: displayOptions[optIdx],
                                             fontSize: 13,
                                           ),
