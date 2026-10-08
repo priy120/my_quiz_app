@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'analysis_screen.dart';
 import 'group_study_screen.dart';
@@ -12,149 +12,89 @@ import '../services/group_service.dart';
 
 enum QuestionStatus { notVisited, notAnswered, answered, markedForReview, markedAndAnswered }
 
-/// Smooth & Flicker-Free MathJax Viewer (Only renders Question Content)
-class SingleMathJaxView extends StatefulWidget {
-  final String questionContent;
+/// Ultra-Fast Native Math & Plain Text Renderer (No WebView, No Jump, No Lag)
+class FastMathTextRender extends StatelessWidget {
+  final String content;
   final double fontSize;
 
-  const SingleMathJaxView({
+  const FastMathTextRender({
     super.key,
-    required this.questionContent,
+    required this.content,
     this.fontSize = 14,
   });
 
   @override
-  State<SingleMathJaxView> createState() => _SingleMathJaxViewState();
-}
-
-class _SingleMathJaxViewState extends State<SingleMathJaxView> with AutomaticKeepAliveClientMixin {
-  late WebViewController _controller;
-  double _contentHeight = 40.0;
-  bool _isReady = false; // Smooth fade-in to avoid layout jump
-
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-    _initController();
-  }
-
-  void _initController() {
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..addJavaScriptChannel(
-        'HeightChannel',
-        onMessageReceived: (JavaScriptMessage message) {
-          double? parsedHeight = double.tryParse(message.message);
-          if (parsedHeight != null && parsedHeight > 0) {
-            if (mounted) {
-              setState(() {
-                _contentHeight = parsedHeight + 8;
-                _isReady = true; // Show view only AFTER height calculation
-              });
-            }
-          }
-        },
-      )
-      ..loadHtmlString(_buildHtml());
-  }
-
-  @override
-  void didUpdateWidget(covariant SingleMathJaxView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.questionContent != widget.questionContent) {
-      setState(() {
-        _isReady = false; // Hide until new question height is ready
-      });
-      _controller.loadHtmlString(_buildHtml());
-    }
-  }
-
-  String _buildHtml() {
-    return '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-      <script>
-        MathJax = {
-          tex: {
-            inlineMath: [['\$', '\$'], ['\\\\(', '\\\\)']],
-            displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
-          },
-          chtml: { scale: 0.95 },
-          startup: {
-            pageReady: () => {
-              return MathJax.startup.defaultPageReady().then(() => {
-                sendHeight();
-              });
-            }
-          }
-        };
-
-        function sendHeight() {
-          if (window.HeightChannel) {
-            var body = document.body;
-            var html = document.documentElement;
-            var height = Math.max(
-              body.scrollHeight, body.offsetHeight, 
-              html.clientHeight, html.scrollHeight, html.offsetHeight
-            );
-            window.HeightChannel.postMessage(height.toString());
-          }
-        }
-      </script>
-      <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-      <style>
-        html, body {
-          margin: 0 !important;
-          padding: 0 !important;
-          background-color: transparent !important;
-        }
-        body {
-          font-family: 'Poppins', sans-serif !important;
-          font-size: ${widget.fontSize}px !important;
-          font-weight: 600 !important;
-          color: #000000 !important;
-          user-select: none;
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-          -webkit-font-smoothing: antialiased;
-        }
-        .question-container {
-          padding: 2px 0;
-          line-height: 1.5;
-        }
-        img { max-width: 100%; height: auto; }
-        .mjx-chtml, .MathJax, mtd, mtr, span {
-          color: #000000 !important;
-          font-weight: 600 !important;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="question-container">
-        ${widget.questionContent}
-      </div>
-    </body>
-    </html>
-    ''';
-  }
-
-  @override
   Widget build(BuildContext context) {
-    super.build(context);
-    return SizedBox(
-      height: _contentHeight,
-      child: AnimatedOpacity(
-        opacity: _isReady ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 150),
-        child: WebViewWidget(controller: _controller),
-      ),
+    if (content.trim().isEmpty) return const SizedBox();
+
+    // Regex to extract $...$ or $$...$$ LaTeX math expressions
+    final RegExp mathRegex = RegExp(r'\$\$(.*?)\$\$|\$(.*?)\$');
+    final matches = mathRegex.allMatches(content);
+
+    if (matches.isEmpty) {
+      return Text(
+        content,
+        style: GoogleFonts.poppins(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+          height: 1.5,
+        ),
+      );
+    }
+
+    List<InlineSpan> spans = [];
+    int lastIndex = 0;
+
+    for (final match in matches) {
+      if (match.start > lastIndex) {
+        spans.add(
+          TextSpan(
+            text: content.substring(lastIndex, match.start),
+            style: GoogleFonts.poppins(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+              height: 1.5,
+            ),
+          ),
+        );
+      }
+
+      final mathText = match.group(1) ?? match.group(2) ?? '';
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Math.tex(
+            mathText,
+            textStyle: TextStyle(fontSize: fontSize, color: Colors.black),
+            onErrorFallback: (err) => Text(
+              '\$$mathText\$',
+              style: TextStyle(fontSize: fontSize, color: Colors.red),
+            ),
+          ),
+        ),
+      );
+
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < content.length) {
+      spans.add(
+        TextSpan(
+          text: content.substring(lastIndex),
+          style: GoogleFonts.poppins(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+            height: 1.5,
+          ),
+        ),
+      );
+    }
+
+    return RichText(
+      text: TextSpan(children: spans),
     );
   }
 }
@@ -425,14 +365,20 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
     }
   }
 
+  /// Live Question Timer
   void _startQuestionTimer() {
     _questionTimer?.cancel();
     if (questions.isEmpty) return;
+
     _currentQuestionSeconds = questionTimesInSeconds[currentQuestionIndex];
 
     _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _currentQuestionSeconds++;
-      questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
+      if (mounted) {
+        setState(() {
+          _currentQuestionSeconds++;
+          questionTimesInSeconds[currentQuestionIndex] = _currentQuestionSeconds;
+        });
+      }
     });
   }
 
@@ -925,7 +871,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
       );
     }
 
-    // Flutter 3.19.6 compatible PopScope
     return PopScope(
       canPop: false,
       onPopInvoked: (bool didPop) async {
@@ -1042,7 +987,14 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                       final qData = questions[index];
                       final String displayQText = _getParsedText(qData['questionText'] ?? '');
                       final List<String> displayOptions = _extractOptions(qData['options']);
-                      final String? qImageUrl = qData['imageUrl'] ?? qData['image'];
+                      
+                      String? qImageUrl;
+                      if (qData['imageUrl'] != null && qData['imageUrl'].toString().trim().isNotEmpty) {
+                        qImageUrl = qData['imageUrl'].toString().trim();
+                      } else if (qData['image'] != null && qData['image'].toString().trim().isNotEmpty) {
+                        qImageUrl = qData['image'].toString().trim();
+                      }
+                      
                       final List<dynamic>? optImages = qData['optionImages'];
 
                       return SingleChildScrollView(
@@ -1095,20 +1047,19 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // SIRF Question Text render hoga WebView me
-                                    SingleMathJaxView(
-                                      questionContent: displayQText,
+                                    FastMathTextRender(
+                                      content: displayQText,
                                       fontSize: 14,
                                     ),
-                                    if (qImageUrl != null && qImageUrl.toString().trim().isNotEmpty) ...[
+                                    if (qImageUrl != null) ...[
                                       const SizedBox(height: 12),
                                       Container(
-                                        constraints: const BoxConstraints(maxHeight: 250),
+                                        constraints: const BoxConstraints(maxHeight: 220),
                                         width: double.infinity,
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(8),
                                           child: Image.network(
-                                            qImageUrl.toString().trim(),
+                                            qImageUrl,
                                             fit: BoxFit.contain,
                                             errorBuilder: (context, error, stackTrace) => const SizedBox(),
                                           ),
@@ -1121,7 +1072,6 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                             ),
                             const SizedBox(height: 12),
                             
-                            // Native Options with full Text (A, B, C, D...)
                             Column(
                               mainAxisSize: MainAxisSize.min,
                               children: List.generate(displayOptions.length, (optIdx) {
@@ -1144,13 +1094,24 @@ class _QuizEngineScreenState extends State<QuizEngineScreen> {
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
                                     dense: true,
-                                    title: Text(
-                                      '(${String.fromCharCode(65 + optIdx)}) ${displayOptions[optIdx]}',
-                                      style: TextStyle(
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                        color: isSelected ? const Color(0xFF1A237E) : Colors.black87,
-                                        fontSize: 13,
-                                      ),
+                                    title: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '(${String.fromCharCode(65 + optIdx)}) ',
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.bold,
+                                            color: isSelected ? const Color(0xFF1A237E) : Colors.black87,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: FastMathTextRender(
+                                            content: displayOptions[optIdx],
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     subtitle: (optImg != null && optImg.trim().isNotEmpty)
                                         ? Padding(
