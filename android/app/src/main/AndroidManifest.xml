@@ -3,12 +3,19 @@
 
     <uses-sdk tools:overrideLibrary="com.razorpay.checkout.lib" />
 
+    <!-- Internet & Push Notification Permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="Compete Me"
         android:name="androidx.multidex.MultiDexApplication"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- Default FCM Notification Channel (High Importance Banner & Sound) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
 
         <meta-data
             android:name="flutterEmbedding"
