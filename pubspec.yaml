@@ -11,11 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Firebase Core Services
+  # Firebase Services
   firebase_core: ^2.27.0
   firebase_auth: ^4.17.8
   cloud_firestore: ^4.15.8
   firebase_database: ^10.4.9
+  firebase_messaging: ^14.7.19
 
   # Network Check (Internet Required)
   connectivity_plus: ^6.0.0
@@ -33,9 +34,7 @@ dependencies:
 
   # Unity Ads Package
   unity_ads_plugin: ^0.4.0
-  
 
-  
   # UI & HTML Render
   google_fonts: ^6.1.0
   cupertino_icons: ^1.0.6
@@ -58,5 +57,6 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+
 dependency_overrides:
   chewie: 1.8.5
