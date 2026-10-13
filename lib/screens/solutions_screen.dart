@@ -16,10 +16,12 @@ class MathJaxView extends StatefulWidget {
   State<MathJaxView> createState() => _MathJaxViewState();
 }
 
-class _MathJaxViewState extends State<MathJaxView> {
+class _MathJaxViewState extends State<MathJaxView> with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
-  double _contentHeight = 50.0;
-  bool _isReady = false;
+  double _webViewHeight = 50.0;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -30,12 +32,11 @@ class _MathJaxViewState extends State<MathJaxView> {
       ..addJavaScriptChannel(
         'HeightChannel',
         onMessageReceived: (JavaScriptMessage message) {
-          double? parsedHeight = double.tryParse(message.message);
-          if (parsedHeight != null && parsedHeight > 0) {
-            if (mounted) {
+          double? height = double.tryParse(message.message);
+          if (height != null && height > 0) {
+            if (mounted && (_webViewHeight - height).abs() > 3) {
               setState(() {
-                _contentHeight = parsedHeight + 6;
-                _isReady = true;
+                _webViewHeight = height + 8;
               });
             }
           }
@@ -48,7 +49,6 @@ class _MathJaxViewState extends State<MathJaxView> {
   void didUpdateWidget(covariant MathJaxView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.content != widget.content) {
-      setState(() => _isReady = false);
       _controller.loadHtmlString(_buildHtml(widget.content, widget.fontSize));
     }
   }
@@ -67,16 +67,16 @@ class _MathJaxViewState extends State<MathJaxView> {
             displayMath: [['\$\$', '\$\$'], ['\\[', '\\]']]
           },
           chtml: {
-            scale: 0.92
+            scale: 0.95
           },
           svg: { 
-            scale: 0.92,
+            scale: 0.95,
             fontCache: 'global' 
           },
           startup: {
             pageReady: () => {
               return MathJax.startup.defaultPageReady().then(() => {
-                sendHeight();
+                setTimeout(sendHeight, 100);
               });
             }
           }
@@ -91,24 +91,26 @@ class _MathJaxViewState extends State<MathJaxView> {
               html.clientHeight, html.scrollHeight, html.offsetHeight
             );
             window.HeightChannel.postMessage(height.toString());
-            document.body.style.visibility = 'visible';
           }
         }
       </script>
       <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       <style>
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background-color: transparent !important;
+          overflow: hidden;
+        }
         body {
           font-family: 'Poppins', sans-serif !important;
           font-size: ${size}px !important;
           font-weight: 600 !important;
           color: #000000 !important;
-          margin: 0;
-          padding: 0;
-          background-color: transparent;
           user-select: none;
           word-wrap: break-word;
           overflow-wrap: break-word;
-          visibility: hidden;
+          line-height: 1.4;
           -webkit-font-smoothing: antialiased;
         }
         img {
@@ -121,8 +123,8 @@ class _MathJaxViewState extends State<MathJaxView> {
         }
       </style>
     </head>
-    <body>
-      $content
+    <body onload="sendHeight()">
+      <div id="content">$content</div>
     </body>
     </html>
     ''';
@@ -130,14 +132,10 @@ class _MathJaxViewState extends State<MathJaxView> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      height: _contentHeight,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 150),
-        opacity: _isReady ? 1.0 : 0.0,
-        child: WebViewWidget(controller: _controller),
-      ),
+    super.build(context);
+    return SizedBox(
+      height: _webViewHeight,
+      child: WebViewWidget(controller: _controller),
     );
   }
 }
@@ -164,7 +162,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
   bool _isReattemptMode = false;
   String _categoryName = "";
   
-  Map<int, int?> _userReattemptAnswers = {};
+  final Map<int, int?> _userReattemptAnswers = {};
 
   @override
   void initState() {
@@ -208,9 +206,32 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
     return ['Option 1', 'Option 2', 'Option 3', 'Option 4'];
   }
 
+  bool _hasMathFormula(String text) {
+    return text.contains(r'\') ||
+        text.contains(r'$') ||
+        text.contains(r'\frac') ||
+        text.contains(r'\sqrt') ||
+        text.contains(r'\int') ||
+        text.contains(r'\pi') ||
+        text.contains(r'\theta');
+  }
+
   Widget _buildMathOrText(String content, {double fontSize = 13}) {
     if (content.trim().isEmpty) return const SizedBox();
-    return MathJaxView(content: content, fontSize: fontSize);
+
+    if (_hasMathFormula(content)) {
+      return MathJaxView(content: content, fontSize: fontSize);
+    }
+
+    return Text(
+      content,
+      style: GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+        height: 1.4,
+      ),
+    );
   }
 
   Widget _buildTestbookTimeBadge(int userTime, int avgTime, int topperTime) {
@@ -324,23 +345,26 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                       itemBuilder: (context, index) {
                         final qData = questions[index].data() as Map<String, dynamic>;
                         final String qText = qData['questionText'] ?? '';
-                        final String? qImageUrl = qData['imageUrl'];
+                        final String? qImageUrl = qData['imageUrl'] ?? qData['image'];
                         final List<dynamic>? optImages = qData['optionImages'];
                         final List<String> options = _extractOptions(qData['options']);
-                        final int correctIdx = qData['correctIndex'] ?? 0;
-                        final String solution = qData['solutionText'] ?? 'Detailed explanation coming soon.';
+                        final int correctIdx = (qData['correctIndex'] as num?)?.toInt() ?? 0;
+                        final String solution = qData['solutionText'] ?? qData['solution'] ?? qData['explanation'] ?? 'Detailed explanation coming soon.';
 
-                        int avgTime = qData['avgTimeSeconds'] ?? 30;
-                        int topperTime = qData['topperTimeSeconds'] ?? 12;
+                        int avgTime = (qData['avgTimeSeconds'] as num?)?.toInt() ?? 30;
+                        int topperTime = (qData['topperTimeSeconds'] as num?)?.toInt() ?? 12;
 
                         int userTime = 0;
                         if (index < widget.userQuestionTimes.length && widget.userQuestionTimes[index] > 0) {
                           userTime = widget.userQuestionTimes[index];
                         } else if (index < savedQuestionTimes.length) {
-                          userTime = savedQuestionTimes[index] ?? 0;
+                          userTime = (savedQuestionTimes[index] as num?)?.toInt() ?? 0;
                         }
 
-                        int? userSelectedIdx = (index < savedUserAnswers.length) ? savedUserAnswers[index] : null;
+                        int? userSelectedIdx;
+                        if (index < savedUserAnswers.length && savedUserAnswers[index] != null) {
+                          userSelectedIdx = (savedUserAnswers[index] as num?)?.toInt();
+                        }
                         
                         if (_isReattemptMode && _userReattemptAnswers.containsKey(index)) {
                           userSelectedIdx = _userReattemptAnswers[index];
@@ -350,7 +374,7 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
                         bool isUserCorrect = isAttempted && (userSelectedIdx == correctIdx);
 
                         return SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 100.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
